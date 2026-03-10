@@ -1,8 +1,8 @@
 /** AI provider configuration, stored in Capacitor Preferences */
 export interface AIConfig {
-  provider: 'openai' | 'gemini' | 'claude' | 'sub2api'
+  provider: 'sub2api'
   apiKey: string
-  endpoint: string // custom endpoint URL, empty = use default
+  endpoint: string // Sub2API gateway URL (required)
   model: string
 }
 
@@ -42,29 +42,8 @@ export interface SSEToolResultData {
   error?: string
 }
 
-/** Default endpoints for each provider */
-export const DEFAULT_ENDPOINTS: Record<string, string> = {
-  openai: 'https://api.openai.com/v1',
-  gemini: 'https://generativelanguage.googleapis.com/v1beta/openai',
-  claude: 'https://api.anthropic.com/v1',
-  sub2api: '',
-}
-
-/** Suggested models for each provider */
-export const SUGGESTED_MODELS: Record<string, string[]> = {
-  openai: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini', 'o3-mini', 'o4-mini'],
-  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'],
-  claude: ['claude-sonnet-4-6', 'claude-haiku-4-5-20251001', 'claude-opus-4-6'],
-  sub2api: ['gpt-5.2', 'gpt-5.4', 'gpt-5.1'],
-}
-
-/** Provider display names */
-export const PROVIDER_LABELS: Record<string, string> = {
-  openai: 'OpenAI',
-  gemini: 'Gemini',
-  claude: 'Claude',
-  sub2api: 'Sub2API',
-}
+/** Suggested models */
+export const SUGGESTED_MODELS = ['gpt-5.2', 'gpt-5.4', 'gpt-5.1']
 
 /** Friendly display names for tool names */
 export const TOOL_DISPLAY_NAMES: Record<string, string> = {

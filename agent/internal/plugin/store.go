@@ -11,12 +11,15 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/server-monitor/agent/internal/ghproxy"
 )
 
 // Store fetches plugin metadata and binaries from GitHub Releases.
 type Store struct {
-	repos  []string // e.g. ["github.com/your-org/sm-plugin-mysql"]
-	client *http.Client
+	repos    []string // e.g. ["github.com/your-org/sm-plugin-mysql"]
+	client   *http.Client
+	resolver *ghproxy.Resolver
 }
 
 // RemotePlugin describes a plugin available in the store.
@@ -40,9 +43,10 @@ type ghAsset struct {
 }
 
 // NewStore creates a store client from a list of GitHub repo paths.
-func NewStore(repos []string) *Store {
+func NewStore(repos []string, resolver *ghproxy.Resolver) *Store {
 	return &Store{
-		repos: repos,
+		repos:    repos,
+		resolver: resolver,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -157,7 +161,8 @@ func (s *Store) Download(name, version, destDir string) error {
 
 // fetchReleases returns releases for a GitHub repo (newest first).
 func (s *Store) fetchReleases(owner, repo string) ([]ghRelease, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases?per_page=10", owner, repo)
+	rawURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases?per_page=10", owner, repo)
+	url := s.resolver.Resolve(rawURL)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -188,7 +193,8 @@ func (s *Store) fetchReleases(owner, repo string) ([]ghRelease, error) {
 }
 
 // downloadFile downloads a URL to a local file path.
-func (s *Store) downloadFile(url, destPath string) error {
+func (s *Store) downloadFile(rawURL, destPath string) error {
+	url := s.resolver.Resolve(rawURL)
 	resp, err := s.client.Get(url)
 	if err != nil {
 		return err

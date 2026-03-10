@@ -9,8 +9,8 @@ import (
 // Requests to /api/health are allowed without authentication.
 func TokenAuth(token string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Health endpoint is public
-		if r.URL.Path == "/api/health" {
+		// Health endpoint is public; terminal WebSocket uses its own query-param auth
+		if r.URL.Path == "/api/health" || r.URL.Path == "/api/terminal/ws" {
 			next.ServeHTTP(w, r)
 			return
 		}

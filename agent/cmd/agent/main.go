@@ -12,8 +12,10 @@ import (
 
 	"github.com/server-monitor/agent/internal/auth"
 	"github.com/server-monitor/agent/internal/config"
+	"github.com/server-monitor/agent/internal/ghproxy"
 	"github.com/server-monitor/agent/internal/module"
 	"github.com/server-monitor/agent/internal/plugin"
+	"github.com/server-monitor/agent/internal/terminal"
 	"github.com/server-monitor/agent/internal/update"
 	"github.com/server-monitor/agent/internal/version"
 
@@ -34,6 +36,9 @@ func main() {
 
 	log.Printf("Config: port=%d, interval=%ds, history=%ds",
 		cfg.Port, cfg.CollectInterval, cfg.HistoryDuration)
+
+	// GitHub proxy resolver for users who cannot access github.com directly
+	ghResolver := ghproxy.NewResolver(cfg.GitHubProxy)
 
 	// Load built-in modules
 	modules := module.EnabledModules(cfg)
@@ -57,16 +62,21 @@ func main() {
 	}
 
 	// Plugin management API
-	pluginStore := plugin.NewStore(cfg.Plugins.Stores)
+	pluginStore := plugin.NewStore(cfg.Plugins.Stores, ghResolver)
 	pluginAPI := plugin.NewAPI(pluginMgr, pluginStore)
 	pluginAPI.RegisterRoutes(mux)
 
 	// Self-update API
 	if cfg.GitHubRepo != "" {
-		updater := update.NewUpdater(cfg.GitHubRepo)
+		updater := update.NewUpdater(cfg.GitHubRepo, ghResolver)
 		updater.RegisterRoutes(mux)
 		log.Printf("Update: auto-update enabled (repo: %s)", cfg.GitHubRepo)
 	}
+
+	// Terminal WebSocket (auth handled via query param)
+	termManager := terminal.NewManager(5)
+	termHandler := terminal.NewHandler(termManager, cfg.AuthToken)
+	termHandler.RegisterRoutes(mux)
 
 	// Start periodic collection scheduler
 	ctx, cancel := context.WithCancel(context.Background())
@@ -114,6 +124,9 @@ func main() {
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server error: %v", err)
 	}
+
+	// Close terminal sessions
+	termManager.CloseAll()
 
 	// Stop external plugins
 	pluginMgr.StopAll()

@@ -28,6 +28,7 @@ type Config struct {
 	HistoryDuration int                     `yaml:"history_duration"`
 	AlertsConfig    string                  `yaml:"alerts_config"`  // path to alerts.yaml
 	GitHubRepo      string                  `yaml:"github_repo"`    // e.g. "user/server-monitor"
+	GitHubProxy     string                  `yaml:"github_proxy"`   // e.g. "https://ghproxy.net"
 	Plugins         PluginConfig            `yaml:"plugins"`
 	Modules         map[string]ModuleConfig `yaml:"modules"`
 }
@@ -106,6 +107,11 @@ func LoadConfig() (*Config, error) {
 	// GitHub repo for auto-update
 	if v := os.Getenv("SM_GITHUB_REPO"); v != "" {
 		cfg.GitHubRepo = v
+	}
+
+	// GitHub proxy for users who cannot access github.com directly
+	if v := os.Getenv("GITHUB_PROXY"); v != "" {
+		cfg.GitHubProxy = v
 	}
 
 	// Plugin directory

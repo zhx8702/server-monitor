@@ -5,10 +5,10 @@ import type { AIConfig } from '../types'
 const AI_CONFIG_KEY = 'sm_ai_config'
 
 const DEFAULT_CONFIG: AIConfig = {
-  provider: 'openai',
+  provider: 'sub2api',
   apiKey: '',
   endpoint: '',
-  model: 'gpt-4o',
+  model: 'gpt-5.2',
 }
 
 export function useAIConfig() {

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import type { AIConfig } from '../types'
-import { DEFAULT_ENDPOINTS, SUGGESTED_MODELS, PROVIDER_LABELS } from '../types'
+import { SUGGESTED_MODELS } from '../types'
 
 interface Props {
   config: AIConfig
@@ -10,17 +10,8 @@ interface Props {
 }
 
 export function AIConfigSheet({ config, onSave, onClose }: Props) {
-  const [draft, setDraft] = useState<AIConfig>({ ...config })
+  const [draft, setDraft] = useState<AIConfig>({ ...config, provider: 'sub2api' })
   const [showKey, setShowKey] = useState(false)
-
-  const handleProviderChange = (provider: AIConfig['provider']) => {
-    setDraft(prev => ({
-      ...prev,
-      provider,
-      model: SUGGESTED_MODELS[provider]?.[0] || '',
-      endpoint: '',
-    }))
-  }
 
   const handleSave = () => {
     onSave(draft)
@@ -42,24 +33,16 @@ export function AIConfigSheet({ config, onSave, onClose }: Props) {
         </div>
 
         <div className="space-y-4">
-          {/* Provider */}
+          {/* Gateway URL */}
           <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">模型提供商</label>
-            <div className="grid grid-cols-4 gap-2">
-              {(['openai', 'gemini', 'claude', 'sub2api'] as const).map(p => (
-                <button
-                  key={p}
-                  className={`py-2 rounded-lg text-sm font-medium transition-colors ${
-                    draft.provider === p
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-gray-100 dark:bg-dark-surface-2 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-dark-surface-3'
-                  }`}
-                  onClick={() => handleProviderChange(p)}
-                >
-                  {PROVIDER_LABELS[p]}
-                </button>
-              ))}
-            </div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">网关地址</label>
+            <input
+              type="text"
+              value={draft.endpoint}
+              onChange={e => setDraft(prev => ({ ...prev, endpoint: e.target.value }))}
+              placeholder="http://192.168.1.x:8000/v1"
+              className="w-full bg-gray-50 dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-emerald-500"
+            />
           </div>
 
           {/* API Key */}
@@ -89,48 +72,30 @@ export function AIConfigSheet({ config, onSave, onClose }: Props) {
               type="text"
               value={draft.model}
               onChange={e => setDraft(prev => ({ ...prev, model: e.target.value }))}
-              placeholder={draft.provider === 'sub2api' ? '输入模型名称，如 gpt-4o' : (SUGGESTED_MODELS[draft.provider]?.[0] || 'model-name')}
+              placeholder="输入模型名称"
               className="w-full bg-gray-50 dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-emerald-500"
             />
-            {SUGGESTED_MODELS[draft.provider] && (
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                {SUGGESTED_MODELS[draft.provider].map(m => (
-                  <button
-                    key={m}
-                    className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
-                      draft.model === m
-                        ? 'bg-emerald-50 dark:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-gray-100 dark:bg-dark-surface-2 text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                    onClick={() => setDraft(prev => ({ ...prev, model: m }))}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Endpoint */}
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">
-              {draft.provider === 'sub2api' ? '网关地址' : (
-                <>自定义端点 <span className="text-gray-400 dark:text-gray-600">（可选）</span></>
-              )}
-            </label>
-            <input
-              type="text"
-              value={draft.endpoint}
-              onChange={e => setDraft(prev => ({ ...prev, endpoint: e.target.value }))}
-              placeholder={draft.provider === 'sub2api' ? 'http://192.168.1.x:8000/v1' : (DEFAULT_ENDPOINTS[draft.provider] || 'https://...')}
-              className="w-full bg-gray-50 dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-emerald-500"
-            />
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {SUGGESTED_MODELS.map(m => (
+                <button
+                  key={m}
+                  className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                    draft.model === m
+                      ? 'bg-emerald-50 dark:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-gray-100 dark:bg-dark-surface-2 text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                  onClick={() => setDraft(prev => ({ ...prev, model: m }))}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Save */}
           <button
             onClick={handleSave}
-            disabled={!draft.apiKey || !draft.model || (draft.provider === 'sub2api' && !draft.endpoint)}
+            disabled={!draft.apiKey || !draft.model || !draft.endpoint}
             className="w-full py-2.5 rounded-lg text-sm font-medium transition-colors bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             保存配置

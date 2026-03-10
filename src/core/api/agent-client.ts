@@ -111,6 +111,17 @@ export class AgentClient {
     return res
   }
 
+  /** Build a WebSocket URL for the terminal endpoint. */
+  getTerminalWsUrl(cmd?: string, apiKey?: string, endpoint?: string): string {
+    const proto = this.config.protocol === 'https' ? 'wss' : 'ws'
+    const base = `${proto}://${this.config.host}:${this.config.port}`
+    const params = new URLSearchParams({ token: this.config.token })
+    if (cmd) params.set('cmd', cmd)
+    if (apiKey) params.set('api_key', apiKey)
+    if (endpoint) params.set('endpoint', endpoint)
+    return `${base}/api/terminal/ws?${params.toString()}`
+  }
+
   async healthCheck(): Promise<boolean> {
     try {
       await this.request('/api/health')

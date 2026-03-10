@@ -27,6 +27,7 @@ UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 GITHUB_REPO="${GITHUB_REPO:-zhx8702/server-monitor}"
 VERSION="${VERSION:-latest}"
 SM_PORT="${SM_PORT:-9090}"
+GITHUB_PROXY="${GITHUB_PROXY:-}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -126,16 +127,53 @@ else
 
   command -v curl >/dev/null 2>&1 || error "需要 curl, 请先安装: apt install curl / yum install curl"
 
+  # ---- GitHub 连通性检测 ----
+  detect_github_proxy() {
+    if [ -n "${GITHUB_PROXY}" ]; then
+      info "使用自定义 GitHub 代理: ${GITHUB_PROXY}"
+      return 0
+    fi
+
+    if curl -sSf --connect-timeout 3 --max-time 5 -o /dev/null https://github.com 2>/dev/null; then
+      info "GitHub 连接正常"
+      return 0
+    fi
+
+    warn "无法直接访问 GitHub，尝试使用镜像代理 ..."
+    local proxies="https://ghproxy.net https://mirror.ghproxy.com"
+    for proxy in ${proxies}; do
+      if curl -sSf --connect-timeout 5 --max-time 8 -o /dev/null "${proxy}/https://github.com" 2>/dev/null; then
+        GITHUB_PROXY="${proxy}"
+        info "使用 GitHub 代理: ${GITHUB_PROXY}"
+        return 0
+      fi
+    done
+
+    warn "所有 GitHub 代理均不可用，将尝试直接下载 ..."
+  }
+
+  proxy_url() {
+    local url="$1"
+    if [ -n "${GITHUB_PROXY}" ]; then
+      echo "${GITHUB_PROXY}/${url}"
+    else
+      echo "${url}"
+    fi
+  }
+
+  detect_github_proxy
+
   if [ -n "${DOWNLOAD_URL:-}" ]; then
     URL="${DOWNLOAD_URL}"
     info "使用自定义下载地址: ${URL}"
   else
     if [ "${VERSION}" = "latest" ]; then
-      URL="https://github.com/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-linux-${ARCH}"
+      RAW_URL="https://github.com/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-linux-${ARCH}"
     else
-      URL="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/${BINARY_NAME}-linux-${ARCH}"
+      RAW_URL="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/${BINARY_NAME}-linux-${ARCH}"
     fi
-    info "从 GitHub Releases 下载: ${URL}"
+    URL="$(proxy_url "${RAW_URL}")"
+    info "下载地��: ${URL}"
   fi
 
   info "下载 ${BINARY_NAME} ..."
@@ -159,6 +197,7 @@ cat > "${ENV_FILE}" <<EOF
 SM_TOKEN=${SM_TOKEN}
 SM_PORT=${SM_PORT}
 SM_GITHUB_REPO=${GITHUB_REPO}
+GITHUB_PROXY=${GITHUB_PROXY}
 EOF
 chmod 600 "${ENV_FILE}"
 

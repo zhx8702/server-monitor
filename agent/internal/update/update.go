@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/server-monitor/agent/internal/ghproxy"
 	"github.com/server-monitor/agent/internal/version"
 )
 
@@ -20,16 +21,18 @@ type Updater struct {
 	githubRepo  string
 	serviceName string
 	client      *http.Client
+	resolver    *ghproxy.Resolver
 }
 
 // NewUpdater creates a new Updater.
-func NewUpdater(githubRepo string) *Updater {
+func NewUpdater(githubRepo string, resolver *ghproxy.Resolver) *Updater {
 	return &Updater{
 		githubRepo:  githubRepo,
 		serviceName: "server-monitor-agent",
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		resolver: resolver,
 	}
 }
 
@@ -66,7 +69,8 @@ func (u *Updater) Check() (*CheckResponse, error) {
 		return nil, fmt.Errorf("github_repo not configured")
 	}
 
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", u.githubRepo)
+	rawURL := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", u.githubRepo)
+	url := u.resolver.Resolve(rawURL)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
@@ -133,7 +137,8 @@ func (u *Updater) Apply() error {
 
 	// Download the binary
 	assetName := fmt.Sprintf("server-monitor-agent-linux-%s", runtime.GOARCH)
-	downloadURL := fmt.Sprintf("https://github.com/%s/releases/latest/download/%s", u.githubRepo, assetName)
+	rawDownloadURL := fmt.Sprintf("https://github.com/%s/releases/latest/download/%s", u.githubRepo, assetName)
+	downloadURL := u.resolver.Resolve(rawDownloadURL)
 
 	log.Printf("Update: downloading %s", downloadURL)
 
