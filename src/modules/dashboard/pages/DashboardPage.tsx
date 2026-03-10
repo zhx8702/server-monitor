@@ -142,7 +142,7 @@ export function DashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{system.hostname}</h3>
-                    <span className="text-xs text-gray-400">{system.os_name || `${system.os} · ${system.platform}`}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{system.os_name || `${system.os} · ${system.platform}`}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 text-emerald-500">
@@ -179,10 +179,10 @@ export function DashboardPage() {
                 <div className="flex items-center gap-1.5 mb-3">
                   <Cpu size={14} className="text-emerald-500" />
                   <span className="text-xs font-medium text-gray-500 dark:text-gray-400">CPU</span>
-                  <span className="text-[10px] text-gray-400 ml-auto">{system?.cpu_logical ?? '-'}核 · {system?.cpu_mhz ? `${(system.cpu_mhz / 1000).toFixed(1)}GHz` : ''}</span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">{system?.cpu_logical ?? '-'}核 · {system?.cpu_mhz ? `${(system.cpu_mhz / 1000).toFixed(1)}GHz` : ''}</span>
                 </div>
                 <RingGauge value={cpuUsage} size={80} strokeWidth={7} />
-                <div className="text-center mt-2 text-[10px] text-gray-400">
+                <div className="text-center mt-2 text-[10px] text-gray-400 dark:text-gray-500">
                   L {cpu?.current?.load_1m?.toFixed(1) ?? '-'}/{cpu?.current?.load_5m?.toFixed(1) ?? '-'}/{cpu?.current?.load_15m?.toFixed(1) ?? '-'}
                 </div>
               </div>
@@ -195,10 +195,10 @@ export function DashboardPage() {
                 <div className="flex items-center gap-1.5 mb-3">
                   <MemoryStick size={14} className="text-emerald-500" />
                   <span className="text-xs font-medium text-gray-500 dark:text-gray-400">内存</span>
-                  <span className="text-[10px] text-gray-400 ml-auto">总量 {memory?.current ? formatBytes(memory.current.total_bytes) : '-'}</span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">总量 {memory?.current ? formatBytes(memory.current.total_bytes) : '-'}</span>
                 </div>
                 <RingGauge value={memUsage} size={80} strokeWidth={7} />
-                <div className="text-center mt-2 text-[10px] text-gray-400">
+                <div className="text-center mt-2 text-[10px] text-gray-400 dark:text-gray-500">
                   可用 {memory?.current ? formatBytes(memory.current.available_bytes) : '-'} · S{' '}
                   {memory?.current ? Math.round(memory.current.swap_usage_percent) : 0}%
                 </div>
@@ -209,23 +209,23 @@ export function DashboardPage() {
                 <div className="flex items-center gap-1.5 mb-3">
                   <Network size={14} className="text-emerald-500" />
                   <span className="text-xs font-medium text-gray-500 dark:text-gray-400">网络</span>
-                  <span className="text-[10px] text-gray-400 ml-auto">{networkDevices[0]?.name ?? ''}</span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">{networkDevices[0]?.name ?? ''}</span>
                 </div>
                 {networkDevices.length === 0 ? (
-                  <div className="text-xs text-gray-400 text-center py-4">暂无数据</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">暂无数据</div>
                 ) : (
                   <div className="space-y-2">
                     {networkDevices.slice(0, 2).map(net => (
                       <div key={net.name} className="space-y-1">
                         <div className="flex items-center justify-between text-[11px] tabular-nums">
-                          <span className="text-[10px] text-gray-400">上</span>
-                          <span className="text-rose-500 font-medium">{formatSpeed(net.tx_bytes_sec)}</span>
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500">上</span>
+                          <span className="text-rose-500 dark:text-rose-400 font-medium">{formatSpeed(net.tx_bytes_sec)}</span>
                         </div>
                         <div className="flex items-center justify-between text-[11px] tabular-nums">
-                          <span className="text-[10px] text-gray-400">下</span>
-                          <span className="text-rose-500 font-medium">{formatSpeed(net.rx_bytes_sec)}</span>
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500">下</span>
+                          <span className="text-emerald-500 dark:text-emerald-400 font-medium">{formatSpeed(net.rx_bytes_sec)}</span>
                         </div>
-                        <div className="text-[10px] text-gray-400 tabular-nums">
+                        <div className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">
                           {net.ip_addresses?.[0] ?? net.name}
                         </div>
                       </div>
@@ -239,7 +239,7 @@ export function DashboardPage() {
                 <div className="flex items-center gap-1.5 mb-3">
                   <HardDrive size={14} className="text-emerald-500" />
                   <span className="text-xs font-medium text-gray-500 dark:text-gray-400">磁盘</span>
-                  <span className="text-[10px] text-gray-400 ml-auto">{primaryDisk?.mount_point ?? '/'}</span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">{primaryDisk?.mount_point ?? '/'}</span>
                 </div>
                 {primaryDisk && (
                   <div className="flex items-end gap-3">
@@ -255,7 +255,7 @@ export function DashboardPage() {
                         />
                       </div>
                     </div>
-                    <div className="flex-1 space-y-1 text-[10px] text-gray-400 tabular-nums">
+                    <div className="flex-1 space-y-1 text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">
                       <div>读 {disk?.io?.[0] ? formatSpeed(disk.io[0].read_bytes_sec) : '0B'}</div>
                       <div>写 {disk?.io?.[0] ? formatSpeed(disk.io[0].write_bytes_sec) : '0B'}</div>
                     </div>
@@ -282,16 +282,16 @@ export function DashboardPage() {
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   运行 {docker.containers_running}
                 </span>
-                <span className="flex items-center gap-1 text-gray-400">
+                <span className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
                   <Container size={11} /> 容器 {docker.containers_total}
                 </span>
-                <span className="flex items-center gap-1 text-gray-400">
+                <span className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
                   <Layers size={11} /> 镜像 {docker.images_total}
                 </span>
               </div>
 
               {docker.version && (
-                <div className="text-[10px] text-gray-400 mb-3">Docker {docker.version}</div>
+                <div className="text-[10px] text-gray-400 dark:text-gray-500 mb-3">Docker {docker.version}</div>
               )}
 
               {docker.containers.length > 0 && (
@@ -306,7 +306,7 @@ export function DashboardPage() {
                         }`} />
                         <div className="min-w-0">
                           <div className="text-sm text-gray-700 dark:text-gray-200 truncate">{c.name}</div>
-                          <div className="text-[10px] text-gray-400 truncate">{c.image}</div>
+                          <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{c.image}</div>
                         </div>
                       </div>
                       <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
@@ -331,7 +331,7 @@ export function DashboardPage() {
             >
               <MonitorCog size={16} className="text-emerald-500" />
               <span className="text-xs font-medium text-gray-700 dark:text-gray-300">进程概览</span>
-              <span className="text-[10px] text-gray-400 ml-auto">查看全部</span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">查看全部</span>
               <ChevronRight size={14} className="text-gray-300 dark:text-gray-600" />
             </button>
           </div>

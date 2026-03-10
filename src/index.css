@@ -43,6 +43,8 @@ body {
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
   letter-spacing: -0.01em;
+  background-color: var(--color-surface-2);
+  color: var(--color-text);
 }
 
 .dark body {

@@ -16,6 +16,7 @@ dist-ssr
 android/app/build
 android/.gradle
 android/local.properties
+*.jks
 
 # Agent build artifacts
 agent/dist/

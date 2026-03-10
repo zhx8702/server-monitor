@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import type { AIConfig } from '../types'
-import { DEFAULT_ENDPOINTS, SUGGESTED_MODELS } from '../types'
+import { DEFAULT_ENDPOINTS, SUGGESTED_MODELS, PROVIDER_LABELS } from '../types'
 
 interface Props {
   config: AIConfig
@@ -30,33 +30,33 @@ export function AIConfigSheet({ config, onSave, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 dark:bg-black/60" onClick={onClose} />
 
       {/* Sheet */}
-      <div className="relative w-full max-w-lg bg-zinc-900 rounded-t-2xl border-t border-zinc-700/50 p-5 pb-safe-bottom animate-slide-up">
+      <div className="relative w-full max-w-lg bg-white dark:bg-dark-surface rounded-t-2xl border-t border-gray-200 dark:border-white/[0.06] p-5 pb-safe-bottom animate-slide-up">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-zinc-100">AI 配置</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-zinc-800">
-            <X className="w-5 h-5 text-zinc-400" />
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">AI 配置</h3>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/[0.06]">
+            <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
 
         <div className="space-y-4">
           {/* Provider */}
           <div>
-            <label className="block text-xs text-zinc-400 mb-1.5">模型提供商</label>
-            <div className="flex gap-2">
-              {(['openai', 'gemini', 'claude'] as const).map(p => (
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">模型提供商</label>
+            <div className="grid grid-cols-4 gap-2">
+              {(['openai', 'gemini', 'claude', 'sub2api'] as const).map(p => (
                 <button
                   key={p}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`py-2 rounded-lg text-sm font-medium transition-colors ${
                     draft.provider === p
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                      : 'bg-gray-100 dark:bg-dark-surface-2 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-dark-surface-3'
                   }`}
                   onClick={() => handleProviderChange(p)}
                 >
-                  {p === 'openai' ? 'OpenAI' : p === 'gemini' ? 'Gemini' : 'Claude'}
+                  {PROVIDER_LABELS[p]}
                 </button>
               ))}
             </div>
@@ -64,17 +64,17 @@ export function AIConfigSheet({ config, onSave, onClose }: Props) {
 
           {/* API Key */}
           <div>
-            <label className="block text-xs text-zinc-400 mb-1.5">API Key</label>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">API Key</label>
             <div className="relative">
               <input
                 type={showKey ? 'text' : 'password'}
                 value={draft.apiKey}
                 onChange={e => setDraft(prev => ({ ...prev, apiKey: e.target.value }))}
                 placeholder="sk-..."
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
+                className="w-full bg-gray-50 dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-emerald-500"
               />
               <button
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-300"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                 onClick={() => setShowKey(!showKey)}
               >
                 {showKey ? '隐藏' : '显示'}
@@ -84,13 +84,13 @@ export function AIConfigSheet({ config, onSave, onClose }: Props) {
 
           {/* Model */}
           <div>
-            <label className="block text-xs text-zinc-400 mb-1.5">模型</label>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">模型</label>
             <input
               type="text"
               value={draft.model}
               onChange={e => setDraft(prev => ({ ...prev, model: e.target.value }))}
               placeholder={SUGGESTED_MODELS[draft.provider]?.[0] || 'model-name'}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
+              className="w-full bg-gray-50 dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-emerald-500"
             />
             {SUGGESTED_MODELS[draft.provider] && (
               <div className="flex flex-wrap gap-1.5 mt-1.5">
@@ -99,8 +99,8 @@ export function AIConfigSheet({ config, onSave, onClose }: Props) {
                     key={m}
                     className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
                       draft.model === m
-                        ? 'bg-emerald-600/30 text-emerald-400'
-                        : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+                        ? 'bg-emerald-50 dark:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-gray-100 dark:bg-dark-surface-2 text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                     onClick={() => setDraft(prev => ({ ...prev, model: m }))}
                   >
@@ -113,22 +113,24 @@ export function AIConfigSheet({ config, onSave, onClose }: Props) {
 
           {/* Endpoint */}
           <div>
-            <label className="block text-xs text-zinc-400 mb-1.5">
-              自定义端点 <span className="text-zinc-600">（可选）</span>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">
+              {draft.provider === 'sub2api' ? '网关地址' : (
+                <>自定义端点 <span className="text-gray-400 dark:text-gray-600">（可选）</span></>
+              )}
             </label>
             <input
               type="text"
               value={draft.endpoint}
               onChange={e => setDraft(prev => ({ ...prev, endpoint: e.target.value }))}
-              placeholder={DEFAULT_ENDPOINTS[draft.provider] || 'https://...'}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
+              placeholder={draft.provider === 'sub2api' ? 'http://192.168.1.x:8000/v1' : (DEFAULT_ENDPOINTS[draft.provider] || 'https://...')}
+              className="w-full bg-gray-50 dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-emerald-500"
             />
           </div>
 
           {/* Save */}
           <button
             onClick={handleSave}
-            disabled={!draft.apiKey || !draft.model}
+            disabled={!draft.apiKey || !draft.model || (draft.provider === 'sub2api' && !draft.endpoint)}
             className="w-full py-2.5 rounded-lg text-sm font-medium transition-colors bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             保存配置

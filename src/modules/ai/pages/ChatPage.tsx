@@ -53,49 +53,50 @@ export function ChatPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-zinc-800">
-        <button
-          onClick={clearMessages}
-          disabled={messages.length === 0}
-          className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 transition-colors"
-        >
-          <Trash2 className="w-4.5 h-4.5" />
-        </button>
-        <h1 className="text-sm font-semibold text-zinc-200">AI 助手</h1>
-        <button
-          onClick={() => setShowConfig(true)}
-          className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
-        >
-          <Settings className="w-4.5 h-4.5" />
-        </button>
-      </div>
-
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+        {/* Action bar */}
+        {messages.length > 0 && (
+          <div className="flex items-center justify-end gap-1 -mt-1 mb-1">
+            <button
+              onClick={clearMessages}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
+            >
+              <Trash2 className="w-3 h-3" />
+              清空
+            </button>
+            <button
+              onClick={() => setShowConfig(true)}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
+            >
+              <Settings className="w-3 h-3" />
+              配置
+            </button>
+          </div>
+        )}
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center mb-4">
-              <Bot className="w-7 h-7 text-emerald-400" />
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center mb-4">
+              <Bot className="w-7 h-7 text-emerald-500 dark:text-emerald-400" />
             </div>
             {!isConfigured ? (
               <>
-                <p className="text-sm text-zinc-400 mb-2">请先配置 AI 模型</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">请先配置 AI 模型</p>
                 <button
                   onClick={() => setShowConfig(true)}
-                  className="text-sm text-emerald-400 hover:text-emerald-300"
+                  className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300"
                 >
                   打开配置
                 </button>
               </>
             ) : (
               <>
-                <p className="text-sm text-zinc-400 mb-4">有什么可以帮你的？</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">有什么可以帮你的？</p>
                 <div className="flex flex-wrap justify-center gap-2 max-w-sm">
                   {SUGGESTIONS.map(s => (
                     <button
                       key={s}
-                      className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
+                      className="text-xs px-3 py-1.5 rounded-full bg-gray-100 dark:bg-dark-surface-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-dark-surface-3 border border-gray-200 dark:border-white/[0.06] transition-colors"
                       onClick={() => {
                         setInput(s)
                         inputRef.current?.focus()
@@ -114,7 +115,7 @@ export function ChatPage() {
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 border-t border-zinc-800 px-4 py-3 pb-safe-bottom">
+      <div className="shrink-0 border-t border-gray-200 dark:border-white/[0.06] px-4 py-3 pb-safe-bottom">
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
@@ -124,7 +125,7 @@ export function ChatPage() {
             placeholder={isConfigured ? '输入消息...' : '请先配置 AI 模型'}
             disabled={!isConfigured}
             rows={1}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none focus:border-emerald-500 disabled:opacity-50 max-h-[120px]"
+            className="flex-1 bg-white dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 resize-none focus:outline-none focus:border-emerald-500 disabled:opacity-50 max-h-[120px]"
           />
           {isProcessing ? (
             <button

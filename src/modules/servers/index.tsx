@@ -1,5 +1,5 @@
 import { lazy } from 'react'
-import { Server, LayoutDashboard } from 'lucide-react'
+import { Server, LayoutDashboard, Bot } from 'lucide-react'
 import type { AppModule } from '../../core/types/module'
 
 const ServerListPage = lazy(() => import('./pages/ServerListPage').then(m => ({ default: m.ServerListPage })))
@@ -18,6 +18,7 @@ export const serversModule: AppModule = {
   ],
   navItems: [
     { path: '/dashboard', label: '仪表盘', icon: LayoutDashboard },
+    { path: '/ai', label: 'AI 助手', icon: Bot },
     { path: '/servers', label: '服务器', icon: Server },
   ],
 }

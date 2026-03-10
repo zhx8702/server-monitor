@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router'
-import { LayoutDashboard, Server } from 'lucide-react'
+import { LayoutDashboard, Bot, Server } from 'lucide-react'
 import type { AppModule } from '../types/module'
 
 interface BottomNavProps {
@@ -18,6 +18,7 @@ export function BottomNav({ isHome, currentModule }: BottomNavProps) {
       }))
     : [
         { to: '/', icon: LayoutDashboard, label: '仪表盘' },
+        { to: '/ai', icon: Bot, label: 'AI 助手' },
         { to: '/servers', icon: Server, label: '服务器' },
       ]
 

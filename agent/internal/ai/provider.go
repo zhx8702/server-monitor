@@ -42,6 +42,11 @@ func NewProvider() *Provider {
 
 // Chat sends a non-streaming chat completion request and returns the full response.
 func (p *Provider) Chat(ctx context.Context, cfg ProviderConfig, req ChatRequest) (*ChatResponse, error) {
+	// Claude and Sub2API use the Anthropic Messages API format
+	if cfg.Provider == "claude" || cfg.Provider == "sub2api" {
+		return p.chatClaude(ctx, cfg, req)
+	}
+
 	req.Stream = false
 
 	endpoint := cfg.Endpoint
@@ -73,14 +78,22 @@ func (p *Provider) Chat(ctx context.Context, cfg ProviderConfig, req ChatRequest
 	}
 	defer resp.Body.Close()
 
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read LLM response: %w", err)
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("LLM API returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var chatResp ChatResponse
-	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
-		return nil, fmt.Errorf("decode LLM response: %w", err)
+	if err := json.Unmarshal(respBody, &chatResp); err != nil {
+		preview := string(respBody)
+		if len(preview) > 300 {
+			preview = preview[:300] + "..."
+		}
+		return nil, fmt.Errorf("decode LLM response (got: %s): %w", preview, err)
 	}
 
 	return &chatResp, nil
@@ -92,6 +105,11 @@ type StreamCallback func(delta string, done bool) error
 // ChatStream sends a streaming chat completion request and calls the callback
 // for each content delta. Used for the final response (no tool calls).
 func (p *Provider) ChatStream(ctx context.Context, cfg ProviderConfig, req ChatRequest, callback StreamCallback) error {
+	// Claude and Sub2API use a different streaming format
+	if cfg.Provider == "claude" || cfg.Provider == "sub2api" {
+		return p.chatStreamClaude(ctx, cfg, req, callback)
+	}
+
 	req.Stream = true
 
 	endpoint := cfg.Endpoint

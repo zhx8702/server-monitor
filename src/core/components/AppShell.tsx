@@ -1,16 +1,28 @@
 import { Outlet, useLocation, useNavigate } from 'react-router'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useServer } from '../contexts/ServerContext'
 import { BottomNav } from './BottomNav'
 import { ToastContainer } from './Toast'
 import { modules } from '../../registry'
-import { Home, ArrowLeft, ChevronDown } from 'lucide-react'
+import { Home, ArrowLeft, ChevronDown, Sun, Moon } from 'lucide-react'
 
 export function AppShell() {
   const { servers, activeServerId, isLoading } = useServer()
   const location = useLocation()
   const navigate = useNavigate()
   const mainRef = useRef<HTMLElement>(null)
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'))
+
+  const toggleTheme = useCallback(() => {
+    const html = document.documentElement
+    html.classList.add('theme-transitioning')
+    const next = !isDark
+    html.classList.toggle('dark', next)
+    localStorage.setItem('theme', next ? 'dark' : 'light')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next ? '#0c0f14' : '#ffffff')
+    setIsDark(next)
+    setTimeout(() => html.classList.remove('theme-transitioning'), 400)
+  }, [isDark])
 
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)
@@ -63,16 +75,25 @@ export function AppShell() {
             )}
             <h1 className="text-base font-semibold text-gray-900 dark:text-white">{isHome ? 'ServerMonitor' : title}</h1>
           </div>
-          {activeServer && (
+          <div className="flex items-center gap-2">
+            {activeServer && (
+              <button
+                onClick={() => navigate('/servers')}
+                className="flex items-center gap-1.5 active:opacity-70 transition-opacity"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
+                <span className="text-xs text-gray-500 dark:text-gray-400">{activeServer.name}</span>
+                <ChevronDown size={12} className="text-gray-400" />
+              </button>
+            )}
             <button
-              onClick={() => navigate('/servers')}
-              className="flex items-center gap-1.5 active:opacity-70 transition-opacity"
+              onClick={toggleTheme}
+              aria-label="切换主题"
+              className="p-2 rounded-xl text-gray-400 dark:text-gray-400 active:bg-gray-100 dark:active:bg-white/[0.06] transition-colors"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">{activeServer.name}</span>
-              <ChevronDown size={12} className="text-gray-400" />
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-          )}
+          </div>
         </div>
       </header>
 

@@ -1,6 +1,6 @@
 /** AI provider configuration, stored in Capacitor Preferences */
 export interface AIConfig {
-  provider: 'openai' | 'gemini' | 'claude'
+  provider: 'openai' | 'gemini' | 'claude' | 'sub2api'
   apiKey: string
   endpoint: string // custom endpoint URL, empty = use default
   model: string
@@ -47,6 +47,7 @@ export const DEFAULT_ENDPOINTS: Record<string, string> = {
   openai: 'https://api.openai.com/v1',
   gemini: 'https://generativelanguage.googleapis.com/v1beta/openai',
   claude: 'https://api.anthropic.com/v1',
+  sub2api: '',
 }
 
 /** Suggested models for each provider */
@@ -54,6 +55,15 @@ export const SUGGESTED_MODELS: Record<string, string[]> = {
   openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o3-mini'],
   gemini: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'],
   claude: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414'],
+  sub2api: ['claude-sonnet-4-20250514', 'gpt-4o', 'gemini-2.0-flash', 'claude-haiku-4-20250414'],
+}
+
+/** Provider display names */
+export const PROVIDER_LABELS: Record<string, string> = {
+  openai: 'OpenAI',
+  gemini: 'Gemini',
+  claude: 'Claude',
+  sub2api: 'Sub2API',
 }
 
 /** Friendly display names for tool names */

@@ -10,11 +10,11 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
     <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* Avatar */}
       <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-        isUser ? 'bg-emerald-600' : 'bg-zinc-700'
+        isUser ? 'bg-emerald-600' : 'bg-gray-200 dark:bg-zinc-700'
       }`}>
         {isUser
           ? <User className="w-3.5 h-3.5 text-white" />
-          : <Bot className="w-3.5 h-3.5 text-zinc-300" />
+          : <Bot className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-300" />
         }
       </div>
 
@@ -33,14 +33,14 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
 
             {/* Text content */}
             {message.content && (
-              <div className="bg-zinc-800 text-zinc-200 rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm whitespace-pre-wrap break-words">
+              <div className="bg-gray-100 dark:bg-dark-surface-2 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-white/[0.06] rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm whitespace-pre-wrap break-words">
                 {message.content}
               </div>
             )}
 
             {/* Typing indicator when streaming with no content yet */}
             {message.isStreaming && !message.content && !(message.toolCalls?.length) && (
-              <div className="bg-zinc-800 rounded-2xl rounded-tl-sm px-1 py-0.5">
+              <div className="bg-gray-100 dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-2xl rounded-tl-sm px-1 py-0.5">
                 <TypingIndicator />
               </div>
             )}

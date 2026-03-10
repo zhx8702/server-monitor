@@ -327,7 +327,7 @@ export function AddServerPage() {
                           onClick={() => setSshAuth(m)}
                           className={`flex-1 py-2 text-xs font-medium transition-colors ${
                             sshAuth === m
-                              ? 'bg-indigo-500 text-white'
+                              ? 'bg-emerald-500 text-white'
                               : 'bg-white dark:bg-dark-surface-2 text-gray-500 dark:text-gray-400'
                           }`}
                         >
@@ -354,7 +354,7 @@ export function AddServerPage() {
                     <button
                       onClick={handleDeploy}
                       disabled={deploying || !canDeploy}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-500 text-white active:bg-indigo-600 transition-colors disabled:opacity-40"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-emerald-500 text-white active:bg-emerald-600 transition-colors disabled:opacity-40"
                     >
                       <Loader2 size={14} className={`animate-spin ${deploying ? '' : 'hidden'}`} />
                       <Rocket size={14} className={deploying ? 'hidden' : ''} />
