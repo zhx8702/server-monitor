@@ -70,8 +70,8 @@ jobs:
       - name: Build web assets
         run: npm run build
 
-      - name: Setup Android project
-        run: npx cap add android && npx cap sync android
+      - name: Sync Android project
+        run: npx cap sync android
 
       - name: Decode keystore
         if: env.KEYSTORE_BASE64 != ''
