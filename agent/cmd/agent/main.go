@@ -88,7 +88,7 @@ func main() {
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
 		Handler:      h,
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		WriteTimeout: 0, // disabled; SSE handlers manage deadlines via ResponseController
 		IdleTimeout:  60 * time.Second,
 	}
 
