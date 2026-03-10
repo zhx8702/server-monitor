@@ -77,18 +77,19 @@ fi
 
 command -v systemctl >/dev/null 2>&1 || error "需要 systemd, 此脚本仅支持 systemd 系统"
 
-# ---- 已运行检测: 如果服务在运行且有凭据, 返回现有信息跳过安装 ----
-if systemctl is-active --quiet "${SERVICE_NAME}" 2>/dev/null && [ -f "${ENV_FILE}" ]; then
-  EXISTING_TOKEN=$(grep '^SM_TOKEN=' "${ENV_FILE}" 2>/dev/null | cut -d= -f2-)
-  EXISTING_PORT=$(grep '^SM_PORT=' "${ENV_FILE}" 2>/dev/null | cut -d= -f2-)
+# ---- 版本检查: 如果二进制相同且服务运行中则跳过安装 ----
+if [ -n "${LOCAL_BINARY:-}" ] && [ -f "${INSTALL_DIR}/${BINARY_NAME}" ] && [ -f "${LOCAL_BINARY}" ]; then
+  NEW_HASH=$(md5sum "${LOCAL_BINARY}" 2>/dev/null | awk '{print $1}')
+  OLD_HASH=$(md5sum "${INSTALL_DIR}/${BINARY_NAME}" 2>/dev/null | awk '{print $1}')
 
-  if [ -n "${EXISTING_TOKEN}" ]; then
+  if [ -n "${NEW_HASH}" ] && [ "${NEW_HASH}" = "${OLD_HASH}" ] && systemctl is-active --quiet "${SERVICE_NAME}" 2>/dev/null; then
+    EXISTING_TOKEN=$(grep '^SM_TOKEN=' "${ENV_FILE}" 2>/dev/null | cut -d= -f2-)
+    EXISTING_PORT=$(grep '^SM_PORT=' "${ENV_FILE}" 2>/dev/null | cut -d= -f2-)
     echo "SM_EXISTING_TOKEN=${EXISTING_TOKEN}"
     echo "SM_EXISTING_PORT=${EXISTING_PORT:-9090}"
     info "=============================================="
-    info " ${BINARY_NAME} 已在运行中, 跳过安装"
+    info " ${BINARY_NAME} 已是最新版本, 无需更新"
     info " 端口: ${EXISTING_PORT:-9090}"
-    info " 如需强制重装, 请先卸载: bash install.sh --uninstall"
     info "=============================================="
     exit 0
   fi
