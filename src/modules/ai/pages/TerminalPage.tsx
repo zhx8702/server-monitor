@@ -3,6 +3,8 @@ import { TerminalSquare, ArrowLeft } from 'lucide-react'
 import { useServer } from '../../../core/contexts/ServerContext'
 import { TerminalView, type TerminalViewHandle } from '../components/TerminalView'
 import { useAIConfig } from '../hooks/useAIConfig'
+import { CLISetupDialog } from '../components/CLISetupDialog'
+import type { AIConfig } from '../types'
 
 const TERMINAL_MODES = [
   { id: 'bash', label: 'Bash', desc: '标准 Shell 终端' },
@@ -27,13 +29,28 @@ export function TerminalPage() {
   const { config } = useAIConfig()
   const [activeCmd, setActiveCmd] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
+  const [setupCmd, setSetupCmd] = useState<AIConfig['cli'] | null>(null)
   const termRef = useRef<TerminalViewHandle>(null)
 
   const client = getClient()
 
   const handleConnect = (cmd: string) => {
+    // For codex/claude, show setup dialog first
+    if (cmd === 'codex' || cmd === 'claude') {
+      setSetupCmd(cmd)
+      return
+    }
+    // Bash connects directly
     setActiveCmd(cmd)
     setConnected(true)
+  }
+
+  const handleSetupReady = () => {
+    if (setupCmd) {
+      setActiveCmd(setupCmd)
+      setConnected(true)
+      setSetupCmd(null)
+    }
   }
 
   const handleDisconnect = useCallback(() => {
@@ -96,7 +113,7 @@ export function TerminalPage() {
       <TerminalSquare className="w-12 h-12 text-emerald-500 mb-4" />
       <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">远程终端</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
-        连接到服务器运行 Bash、Codex CLI 或 Claude Code
+        连接到服务器运�� Bash、Codex CLI 或 Claude Code
       </p>
       <div className="space-y-3 w-full max-w-xs">
         {TERMINAL_MODES.map(mode => (
@@ -110,6 +127,16 @@ export function TerminalPage() {
           </button>
         ))}
       </div>
+
+      {/* CLI Setup Dialog */}
+      {setupCmd && (
+        <CLISetupDialog
+          cli={setupCmd}
+          config={config}
+          onReady={handleSetupReady}
+          onCancel={() => setSetupCmd(null)}
+        />
+      )}
     </div>
   )
 }

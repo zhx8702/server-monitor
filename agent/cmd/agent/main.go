@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/server-monitor/agent/internal/ai"
 	"github.com/server-monitor/agent/internal/auth"
 	"github.com/server-monitor/agent/internal/config"
 	"github.com/server-monitor/agent/internal/ghproxy"
@@ -77,6 +78,11 @@ func main() {
 	termManager := terminal.NewManager(5)
 	termHandler := terminal.NewHandler(termManager, cfg.AuthToken)
 	termHandler.RegisterRoutes(mux)
+
+	// AI chat (headless CLI mode)
+	aiRunner := ai.NewHeadlessRunner()
+	aiHandler := ai.NewChatHandler(aiRunner)
+	aiHandler.RegisterRoutes(mux)
 
 	// Start periodic collection scheduler
 	ctx, cancel := context.WithCancel(context.Background())

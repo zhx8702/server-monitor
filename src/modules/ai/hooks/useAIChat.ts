@@ -6,6 +6,7 @@ import type { AIConfig, ChatMessage, ToolCallInfo, SSEToolCallData, SSEToolResul
 export function useAIChat(aiConfig: AIConfig) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
+  const [chatId] = useState(() => `chat-${generateId()}`)
   const abortRef = useRef<AbortController | null>(null)
   const { getClient } = useServer()
 
@@ -38,20 +39,13 @@ export function useAIChat(aiConfig: AIConfig) {
     abortRef.current = abort
 
     try {
-      // Build message history for the API (exclude isStreaming/toolCalls metadata)
-      const apiMessages = [...messages, userMsg].map(m => ({
-        role: m.role,
-        content: m.content,
-      }))
-
       const res = await client.postStream('/api/ai/chat', {
-        provider: {
-          provider: aiConfig.provider,
-          apiKey: aiConfig.apiKey,
-          endpoint: aiConfig.endpoint,
-          model: aiConfig.model,
-        },
-        messages: apiMessages,
+        cli: aiConfig.cli,
+        apiKey: aiConfig.apiKey,
+        endpoint: aiConfig.endpoint,
+        model: aiConfig.model,
+        prompt: content,
+        chatId,
       }, abort.signal)
 
       // Read SSE stream
@@ -102,7 +96,7 @@ export function useAIChat(aiConfig: AIConfig) {
       setIsProcessing(false)
       abortRef.current = null
     }
-  }, [messages, aiConfig, getClient])
+  }, [aiConfig, chatId, getClient])
 
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort()
@@ -111,7 +105,12 @@ export function useAIChat(aiConfig: AIConfig) {
 
   const clearMessages = useCallback(() => {
     setMessages([])
-  }, [])
+    // Clear backend session
+    const client = getClient()
+    if (client) {
+      client.post('/api/ai/clear-session', { chatId }).catch(() => {})
+    }
+  }, [chatId, getClient])
 
   return { messages, isProcessing, sendMessage, stopGeneration, clearMessages }
 }

@@ -5,10 +5,10 @@ import type { AIConfig } from '../types'
 const AI_CONFIG_KEY = 'sm_ai_config'
 
 const DEFAULT_CONFIG: AIConfig = {
-  provider: 'sub2api',
+  cli: 'claude',
   apiKey: '',
   endpoint: '',
-  model: 'gpt-5.2',
+  model: 'claude-sonnet-4-20250514',
 }
 
 export function useAIConfig() {
@@ -19,7 +19,13 @@ export function useAIConfig() {
     Preferences.get({ key: AI_CONFIG_KEY }).then(({ value }) => {
       if (value) {
         try {
-          setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(value) })
+          const saved = JSON.parse(value)
+          // Migrate old config format
+          if (saved.provider && !saved.cli) {
+            saved.cli = 'claude'
+            delete saved.provider
+          }
+          setConfig({ ...DEFAULT_CONFIG, ...saved })
         } catch {
           // ignore parse errors
         }

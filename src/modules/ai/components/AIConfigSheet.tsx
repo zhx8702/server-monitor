@@ -9,14 +9,30 @@ interface Props {
   onClose: () => void
 }
 
+const CLI_OPTIONS: { value: AIConfig['cli']; label: string; desc: string }[] = [
+  { value: 'claude', label: 'Claude Code', desc: 'Anthropic' },
+  { value: 'codex', label: 'Codex CLI', desc: 'OpenAI' },
+]
+
 export function AIConfigSheet({ config, onSave, onClose }: Props) {
-  const [draft, setDraft] = useState<AIConfig>({ ...config, provider: 'sub2api' })
+  const [draft, setDraft] = useState<AIConfig>({ ...config })
   const [showKey, setShowKey] = useState(false)
+
+  const handleCLIChange = (cli: AIConfig['cli']) => {
+    const models = SUGGESTED_MODELS[cli] || []
+    setDraft(prev => ({
+      ...prev,
+      cli,
+      model: models[0] || prev.model,
+    }))
+  }
 
   const handleSave = () => {
     onSave(draft)
     onClose()
   }
+
+  const models = SUGGESTED_MODELS[draft.cli] || []
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -33,6 +49,27 @@ export function AIConfigSheet({ config, onSave, onClose }: Props) {
         </div>
 
         <div className="space-y-4">
+          {/* CLI Selector */}
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">CLI 工具</label>
+            <div className="grid grid-cols-2 gap-2">
+              {CLI_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  className={`flex flex-col items-center gap-0.5 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                    draft.cli === opt.value
+                      ? 'bg-emerald-50 dark:bg-emerald-600/20 border-emerald-400 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
+                      : 'bg-gray-50 dark:bg-dark-surface-2 border-gray-200 dark:border-white/[0.06] text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-white/[0.1]'
+                  }`}
+                  onClick={() => handleCLIChange(opt.value)}
+                >
+                  <span>{opt.label}</span>
+                  <span className="text-[10px] opacity-60">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Gateway URL */}
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">网关地址</label>
@@ -76,7 +113,7 @@ export function AIConfigSheet({ config, onSave, onClose }: Props) {
               className="w-full bg-gray-50 dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-emerald-500"
             />
             <div className="flex flex-wrap gap-1.5 mt-1.5">
-              {SUGGESTED_MODELS.map(m => (
+              {models.map(m => (
                 <button
                   key={m}
                   className={`text-xs px-2 py-0.5 rounded-full transition-colors ${

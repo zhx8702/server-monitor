@@ -163,7 +163,9 @@ func resolveCommand(command string) (string, []string) {
 	}
 }
 
-// RegisterRoutes registers terminal WebSocket routes.
+// RegisterRoutes registers terminal WebSocket and setup routes.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/terminal/ws", h.HandleWS)
+	mux.HandleFunc("GET /api/terminal/status", h.HandleStatus)
+	mux.HandleFunc("POST /api/terminal/setup", h.HandleSetup)
 }
