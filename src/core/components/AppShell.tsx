@@ -108,15 +108,14 @@ export function AppShell() {
             <span>新版本 {appUpdate.latestVersion} 可用</span>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                const url = appUpdate.downloadUrl || appUpdate.releaseUrl
-                if (url) window.open(url, '_blank')
-              }}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-500 text-white active:scale-95 transition-transform"
+            <a
+              href={appUpdate.downloadUrl || appUpdate.releaseUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-500 text-white active:scale-95 transition-transform inline-block"
             >
               下载更新
-            </button>
+            </a>
             <button
               onClick={() => setDismissedUpdate(true)}
               className="p-1 rounded-lg text-amber-400 active:bg-amber-100 dark:active:bg-amber-500/20 transition-colors"

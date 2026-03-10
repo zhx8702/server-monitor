@@ -67,6 +67,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Inject version from tag
+        run: npm pkg set version="${GITHUB_REF_NAME#v}"
+
       - name: Build web assets
         run: npm run build
 
@@ -77,12 +80,11 @@ jobs:
         if: env.KEYSTORE_BASE64 != ''
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           printf '%s' "$KEYSTORE_BASE64" | tr -d '\n\r\t ' | base64 -d > android/keystore.jks
-          # Verify the keystore is valid
-          keytool -list -keystore android/keystore.jks -storepass "$KEYSTORE_PASSWORD" -storetype PKCS12 > /dev/null 2>&1 \
-            || { echo "::warning::Keystore decode failed or invalid, falling back to debug APK"; rm -f android/keystore.jks; }
-        continue-on-error: true
+          keytool -list -keystore android/keystore.jks -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1 \
+            || { echo "::warning::Keystore verification failed, falling back to debug APK"; rm -f android/keystore.jks; }
 
       - name: Inject signing config
         if: hashFiles('android/keystore.jks') != ''
