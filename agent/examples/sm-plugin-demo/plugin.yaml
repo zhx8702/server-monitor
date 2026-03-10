@@ -1,0 +1,9 @@
+name: demo
+version: 1.0.0
+description: Demo plugin - shows runtime info and plugin contract reference
+author: server-monitor
+type: on-demand
+binary: sm-plugin-demo
+routes:
+  - method: GET
+    path: /api/demo
