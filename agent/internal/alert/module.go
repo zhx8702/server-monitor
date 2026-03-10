@@ -51,15 +51,35 @@ func (m *AlertModule) Close() error            { return nil }
 
 func (m *AlertModule) Routes() []module.Route {
 	return []module.Route{
-		{Method: http.MethodGet, Path: "/api/alerts", Handler: m.handleOverview},
-		{Method: http.MethodGet, Path: "/api/alerts/rules", Handler: m.handleGetRules},
-		{Method: http.MethodPost, Path: "/api/alerts/rules", Handler: m.handleUpsertRule},
-		{Method: http.MethodPost, Path: "/api/alerts/rules/delete", Handler: m.handleDeleteRule},
-		{Method: http.MethodGet, Path: "/api/alerts/channels", Handler: m.handleGetChannels},
-		{Method: http.MethodPost, Path: "/api/alerts/channels", Handler: m.handleUpsertChannel},
-		{Method: http.MethodPost, Path: "/api/alerts/channels/delete", Handler: m.handleDeleteChannel},
-		{Method: http.MethodGet, Path: "/api/alerts/history", Handler: m.handleHistory},
-		{Method: http.MethodPost, Path: "/api/alerts/test", Handler: m.handleTest},
+		{Path: "/api/alerts", Handler: m.handleOverview},
+		{Path: "/api/alerts/rules", Handler: m.handleRules},
+		{Path: "/api/alerts/rules/delete", Handler: m.handleDeleteRule},
+		{Path: "/api/alerts/channels", Handler: m.handleChannels},
+		{Path: "/api/alerts/channels/delete", Handler: m.handleDeleteChannel},
+		{Path: "/api/alerts/history", Handler: m.handleHistory},
+		{Path: "/api/alerts/test", Handler: m.handleTest},
+	}
+}
+
+func (m *AlertModule) handleRules(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		m.handleGetRules(w, r)
+	case http.MethodPost:
+		m.handleUpsertRule(w, r)
+	default:
+		writeAlertError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+func (m *AlertModule) handleChannels(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		m.handleGetChannels(w, r)
+	case http.MethodPost:
+		m.handleUpsertChannel(w, r)
+	default:
+		writeAlertError(w, http.StatusMethodNotAllowed, "method not allowed")
 	}
 }
 
