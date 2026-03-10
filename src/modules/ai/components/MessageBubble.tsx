@@ -2,6 +2,7 @@ import { User, Bot } from 'lucide-react'
 import type { ChatMessage } from '../types'
 import { ToolCallCard } from './ToolCallCard'
 import { TypingIndicator } from './TypingIndicator'
+import { MarkdownContent } from './MarkdownContent'
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user'
@@ -31,10 +32,10 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
               <ToolCallCard key={tc.id} toolCall={tc} />
             ))}
 
-            {/* Text content */}
+            {/* Text content with Markdown */}
             {message.content && (
-              <div className="bg-gray-100 dark:bg-dark-surface-2 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-white/[0.06] rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm whitespace-pre-wrap break-words">
-                {message.content}
+              <div className="bg-gray-100 dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-2xl rounded-tl-sm px-3.5 py-2.5">
+                <MarkdownContent content={message.content} />
               </div>
             )}
 
