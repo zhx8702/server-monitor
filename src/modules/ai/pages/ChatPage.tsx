@@ -65,13 +65,6 @@ export function ChatPage() {
               <Trash2 className="w-3 h-3" />
               清空
             </button>
-            <button
-              onClick={() => setShowConfig(true)}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
-            >
-              <Settings className="w-3 h-3" />
-              配置
-            </button>
           </div>
         )}
         {messages.length === 0 ? (
@@ -82,12 +75,7 @@ export function ChatPage() {
             {!isConfigured ? (
               <>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">请先配置 AI 模型</p>
-                <button
-                  onClick={() => setShowConfig(true)}
-                  className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300"
-                >
-                  打开配置
-                </button>
+                <p className="text-xs text-gray-400 dark:text-gray-500">点击左下角设置按钮开始配置</p>
               </>
             ) : (
               <>
@@ -117,6 +105,12 @@ export function ChatPage() {
       {/* Input area */}
       <div className="shrink-0 border-t border-gray-200 dark:border-white/[0.06] px-4 py-3 pb-safe-bottom">
         <div className="flex items-end gap-2">
+          <button
+            onClick={() => setShowConfig(true)}
+            className="shrink-0 w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/[0.06] flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/[0.1] transition-colors"
+          >
+            <Settings className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          </button>
           <textarea
             ref={inputRef}
             value={input}

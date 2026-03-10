@@ -1,10 +1,11 @@
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useServer } from '../contexts/ServerContext'
+import { useAppUpdate } from '../hooks/useAppUpdate'
 import { BottomNav } from './BottomNav'
 import { ToastContainer } from './Toast'
 import { modules } from '../../registry'
-import { Home, ArrowLeft, ChevronDown, Sun, Moon } from 'lucide-react'
+import { Home, ArrowLeft, ChevronDown, Sun, Moon, Download, X } from 'lucide-react'
 
 export function AppShell() {
   const { servers, activeServerId, isLoading } = useServer()
@@ -12,6 +13,8 @@ export function AppShell() {
   const navigate = useNavigate()
   const mainRef = useRef<HTMLElement>(null)
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'))
+  const [dismissedUpdate, setDismissedUpdate] = useState(false)
+  const { data: appUpdate } = useAppUpdate()
 
   const toggleTheme = useCallback(() => {
     const html = document.documentElement
@@ -96,6 +99,33 @@ export function AppShell() {
           </div>
         </div>
       </header>
+
+      {/* App Update Banner */}
+      {appUpdate?.updateAvailable && !dismissedUpdate && (
+        <div className="shrink-0 flex items-center justify-between px-4 py-2 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200/60 dark:border-amber-500/20">
+          <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
+            <Download size={14} />
+            <span>新版本 {appUpdate.latestVersion} 可用</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const url = appUpdate.downloadUrl || appUpdate.releaseUrl
+                if (url) window.open(url, '_blank')
+              }}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-500 text-white active:scale-95 transition-transform"
+            >
+              下载更新
+            </button>
+            <button
+              onClick={() => setDismissedUpdate(true)}
+              className="p-1 rounded-lg text-amber-400 active:bg-amber-100 dark:active:bg-amber-500/20 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <main ref={mainRef} className="flex-1 overflow-hidden">

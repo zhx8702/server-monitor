@@ -4,8 +4,9 @@ import { useServer } from '../../../core/contexts/ServerContext'
 import { useToast } from '../../../core/contexts/ToastContext'
 import { AgentClient } from '../../../core/api/agent-client'
 import { Loader2, CheckCircle, XCircle, ChevronDown, Copy, Check, Terminal, Rocket } from 'lucide-react'
+import { SSHDeploy, isCapacitor } from '../../../core/api/capacitor-ssh'
 
-const isDev = import.meta.env.DEV
+const hasSSHBackend = import.meta.env.DEV || isCapacitor
 
 function generateToken() {
   const arr = new Uint8Array(24)
@@ -34,6 +35,8 @@ export function AddServerPage() {
 
   // SSH deploy state
   const [deployHost, setDeployHost] = useState('')
+  const [sshPort, setSshPort] = useState('22')
+  const [sshUser, setSshUser] = useState('root')
   const [sshAuth, setSshAuth] = useState<'password' | 'key'>('password')
   const [sshPassword, setSshPassword] = useState('')
   const [sshKeyPath, setSshKeyPath] = useState('~/.ssh/id_rsa')
@@ -124,8 +127,11 @@ export function AddServerPage() {
     }
   }
 
-  // -- Deploy: SSH (dev only) --
-  const canDeploy = deployHost.trim() && (sshAuth === 'key' ? sshKeyPath.trim() : sshPassword.trim())
+  // -- Deploy: SSH --
+  const canDeploy = deployHost.trim() && (isCapacitor
+    ? sshPassword.trim()
+    : sshAuth === 'key' ? sshKeyPath.trim() : sshPassword.trim()
+  )
 
   async function handleDeploy() {
     if (!deployHost.trim()) {
@@ -150,52 +156,77 @@ export function AddServerPage() {
     let finalPort = deployPort
 
     try {
-      const res = await fetch('/api/deploy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          host: deployHost.trim(),
-          smToken: deployToken,
-          smPort: deployPort,
-          ...(sshAuth === 'key'
-            ? { sshKeyPath: sshKeyPath.trim() }
-            : { sshPassword }),
-        }),
-      })
-
-      const reader = res.body?.getReader()
-      if (!reader) throw new Error('No response body')
-
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      const processLine = (line: string) => {
-        if (!line.startsWith('data: ')) return
+      if (isCapacitor && SSHDeploy) {
+        // --- Native Capacitor SSH deploy ---
+        const listener = await SSHDeploy.addListener('deployLog', ({ log }) => {
+          setDeployLogs(prev => [...prev, log])
+        })
         try {
-          const data = JSON.parse(line.slice(6))
-          if (typeof data === 'object' && data !== null && 'success' in data) {
-            setDeployResult(data)
-            success = data.success
-            // If agent was already installed, use existing token/port
-            if (data.existingToken) finalToken = data.existingToken
-            if (data.existingPort) finalPort = Number(data.existingPort)
-          } else if (typeof data === 'string') {
-            setDeployLogs(prev => [...prev, data])
-          }
-        } catch { /* skip */ }
+          const result = await SSHDeploy.deploy({
+            host: deployHost.trim(),
+            sshPort: Number(sshPort) || 22,
+            sshUser: sshUser.trim() || 'root',
+            sshPassword,
+            smToken: deployToken,
+            smPort: deployPort,
+          })
+          success = result.success
+          if (result.existingToken) finalToken = result.existingToken
+          if (result.existingPort) finalPort = result.existingPort
+          setDeployResult({ success: result.success, message: result.message })
+        } finally {
+          await listener.remove()
+        }
+      } else {
+        // --- Dev server SSE deploy ---
+        const res = await fetch('/api/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host: deployHost.trim(),
+            sshPort: Number(sshPort) || 22,
+            sshUser: sshUser.trim() || 'root',
+            smToken: deployToken,
+            smPort: deployPort,
+            ...(sshAuth === 'key'
+              ? { sshKeyPath: sshKeyPath.trim() }
+              : { sshPassword }),
+          }),
+        })
+
+        const reader = res.body?.getReader()
+        if (!reader) throw new Error('No response body')
+
+        const decoder = new TextDecoder()
+        let buffer = ''
+
+        const processLine = (line: string) => {
+          if (!line.startsWith('data: ')) return
+          try {
+            const data = JSON.parse(line.slice(6))
+            if (typeof data === 'object' && data !== null && 'success' in data) {
+              setDeployResult(data)
+              success = data.success
+              if (data.existingToken) finalToken = data.existingToken
+              if (data.existingPort) finalPort = Number(data.existingPort)
+            } else if (typeof data === 'string') {
+              setDeployLogs(prev => [...prev, data])
+            }
+          } catch { /* skip */ }
+        }
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          lines.forEach(processLine)
+        }
+
+        if (buffer) buffer.split('\n').forEach(processLine)
       }
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-        lines.forEach(processLine)
-      }
-
-      if (buffer) buffer.split('\n').forEach(processLine)
     } catch (err) {
       const message = err instanceof Error ? err.message : '部署失败'
       setDeployResult({ success: false, message })
@@ -269,7 +300,7 @@ export function AddServerPage() {
                     onClick={() => setProtocol(p)}
                     className={`flex-1 py-3 text-xs font-medium transition-colors ${
                       protocol === p
-                        ? 'bg-emerald-500 text-white'
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                         : 'bg-white dark:bg-dark-surface-2 text-gray-500 dark:text-gray-400'
                     }`}
                   >
@@ -306,7 +337,7 @@ export function AddServerPage() {
             </button>
             {deployOpen && (
               <div className="px-4 py-3 space-y-3 border-t border-gray-200 dark:border-white/[0.08]">
-                {isDev ? (
+                {hasSSHBackend ? (
                   <>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       填写 SSH 信息，一键部署 Agent 到目标服务器，部署成功后自动回填连接信息
@@ -320,22 +351,45 @@ export function AddServerPage() {
                         className={inputClass}
                       />
                     </div>
-                    <div className="flex rounded-lg border border-gray-200 dark:border-white/[0.08] overflow-hidden">
-                      {(['password', 'key'] as const).map(m => (
-                        <button
-                          key={m}
-                          onClick={() => setSshAuth(m)}
-                          className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                            sshAuth === m
-                              ? 'bg-emerald-500 text-white'
-                              : 'bg-white dark:bg-dark-surface-2 text-gray-500 dark:text-gray-400'
-                          }`}
-                        >
-                          {m === 'password' ? '密码登录' : '密钥登录'}
-                        </button>
-                      ))}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={labelClass}>SSH 端口</label>
+                        <input
+                          value={sshPort}
+                          onChange={e => setSshPort(e.target.value)}
+                          type="number"
+                          placeholder="22"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>SSH 用户</label>
+                        <input
+                          value={sshUser}
+                          onChange={e => setSshUser(e.target.value)}
+                          placeholder="root"
+                          className={inputClass}
+                        />
+                      </div>
                     </div>
-                    {sshAuth === 'password' ? (
+                    {!isCapacitor && (
+                      <div className="flex rounded-lg border border-gray-200 dark:border-white/[0.08] overflow-hidden">
+                        {(['password', 'key'] as const).map(m => (
+                          <button
+                            key={m}
+                            onClick={() => setSshAuth(m)}
+                            className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                              sshAuth === m
+                                ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-white dark:bg-dark-surface-2 text-gray-500 dark:text-gray-400'
+                            }`}
+                          >
+                            {m === 'password' ? '密码登录' : '密钥登录'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {sshAuth === 'password' || isCapacitor ? (
                       <input
                         value={sshPassword}
                         onChange={e => setSshPassword(e.target.value)}
@@ -354,7 +408,7 @@ export function AddServerPage() {
                     <button
                       onClick={handleDeploy}
                       disabled={deploying || !canDeploy}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-emerald-500 text-white active:bg-emerald-600 transition-colors disabled:opacity-40"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border border-emerald-500 dark:border-emerald-500/60 text-emerald-600 dark:text-emerald-400 active:bg-emerald-50 dark:active:bg-emerald-500/10 transition-colors disabled:opacity-40"
                     >
                       <Loader2 size={14} className={`animate-spin ${deploying ? '' : 'hidden'}`} />
                       <Rocket size={14} className={deploying ? 'hidden' : ''} />

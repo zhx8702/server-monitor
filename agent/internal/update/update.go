@@ -194,7 +194,9 @@ func (u *Updater) Apply() error {
 	return nil
 }
 
-// copyFile copies src to dst, overwriting dst.
+// copyFile copies src to dst, replacing dst.
+// On Linux, a running binary cannot be overwritten directly ("text file busy"),
+// so we remove the old file first (the running process keeps its fd), then create a new one.
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
@@ -202,7 +204,10 @@ func copyFile(src, dst string) error {
 	}
 	defer in.Close()
 
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_TRUNC, 0755)
+	// Remove the old file (unlink) — safe even if the binary is running
+	os.Remove(dst)
+
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
 	}

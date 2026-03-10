@@ -89,7 +89,7 @@ export function AIConfigSheet({ config, onSave, onClose }: Props) {
               type="text"
               value={draft.model}
               onChange={e => setDraft(prev => ({ ...prev, model: e.target.value }))}
-              placeholder={SUGGESTED_MODELS[draft.provider]?.[0] || 'model-name'}
+              placeholder={draft.provider === 'sub2api' ? '输入模型名称，如 gpt-4o' : (SUGGESTED_MODELS[draft.provider]?.[0] || 'model-name')}
               className="w-full bg-gray-50 dark:bg-dark-surface-2 border border-gray-200 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-emerald-500"
             />
             {SUGGESTED_MODELS[draft.provider] && (

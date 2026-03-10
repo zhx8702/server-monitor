@@ -5,6 +5,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
+
 // Dev-only: SSH deploy agent to remote server
 function deployPlugin(): Plugin {
   return {
@@ -325,6 +327,9 @@ function agentProxyPlugin(): Plugin {
 }
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     tailwindcss(),

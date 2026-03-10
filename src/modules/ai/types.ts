@@ -52,10 +52,10 @@ export const DEFAULT_ENDPOINTS: Record<string, string> = {
 
 /** Suggested models for each provider */
 export const SUGGESTED_MODELS: Record<string, string[]> = {
-  openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o3-mini'],
-  gemini: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'],
-  claude: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414'],
-  sub2api: ['claude-sonnet-4-20250514', 'gpt-4o', 'gemini-2.0-flash', 'claude-haiku-4-20250414'],
+  openai: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini', 'o3-mini', 'o4-mini'],
+  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'],
+  claude: ['claude-sonnet-4-6', 'claude-haiku-4-5-20251001', 'claude-opus-4-6'],
+  sub2api: ['gpt-5.2', 'gpt-5.4', 'gpt-5.1'],
 }
 
 /** Provider display names */

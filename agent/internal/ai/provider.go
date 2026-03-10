@@ -42,9 +42,13 @@ func NewProvider() *Provider {
 
 // Chat sends a non-streaming chat completion request and returns the full response.
 func (p *Provider) Chat(ctx context.Context, cfg ProviderConfig, req ChatRequest) (*ChatResponse, error) {
-	// Claude and Sub2API use the Anthropic Messages API format
-	if cfg.Provider == "claude" || cfg.Provider == "sub2api" {
+	// Claude uses the Anthropic Messages API format
+	if cfg.Provider == "claude" {
 		return p.chatClaude(ctx, cfg, req)
+	}
+	// Sub2API uses OpenAI Responses API format
+	if cfg.Provider == "sub2api" {
+		return p.chatResponses(ctx, cfg, req)
 	}
 
 	req.Stream = false
@@ -105,9 +109,13 @@ type StreamCallback func(delta string, done bool) error
 // ChatStream sends a streaming chat completion request and calls the callback
 // for each content delta. Used for the final response (no tool calls).
 func (p *Provider) ChatStream(ctx context.Context, cfg ProviderConfig, req ChatRequest, callback StreamCallback) error {
-	// Claude and Sub2API use a different streaming format
-	if cfg.Provider == "claude" || cfg.Provider == "sub2api" {
+	// Claude uses a different streaming format
+	if cfg.Provider == "claude" {
 		return p.chatStreamClaude(ctx, cfg, req, callback)
+	}
+	// Sub2API uses OpenAI Responses API streaming format
+	if cfg.Provider == "sub2api" {
+		return p.chatStreamResponses(ctx, cfg, req, callback)
 	}
 
 	req.Stream = true

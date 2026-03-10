@@ -244,12 +244,12 @@ export function SystemDetailPage() {
 
               {/* Update Check */}
               {applyMutation.isSuccess ? (
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-500/10">
+                <div key="success" className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-500/10">
                   <Check size={14} className="text-emerald-500" />
                   <span className="text-xs text-emerald-600 dark:text-emerald-400">更新已应用，Agent 正在重启...</span>
                 </div>
               ) : updateCheck?.updateAvailable ? (
-                <div className="space-y-2">
+                <div key="available" className="space-y-2">
                   <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50/50 dark:bg-amber-500/10">
                     <div>
                       <div className="text-xs font-medium text-amber-700 dark:text-amber-400">
@@ -268,9 +268,9 @@ export function SystemDetailPage() {
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-emerald-500 text-white active:scale-95 transition-transform disabled:opacity-50"
                     >
                       {applyMutation.isPending ? (
-                        <><RefreshCw size={12} className="animate-spin" /> 更新中...</>
+                        <><RefreshCw size={12} className="animate-spin" /><span>更新中...</span></>
                       ) : (
-                        <><Download size={12} /> 立即更新</>
+                        <><Download size={12} /><span>立即更新</span></>
                       )}
                     </button>
                   </div>
@@ -279,20 +279,21 @@ export function SystemDetailPage() {
                   )}
                 </div>
               ) : updateCheck && !updateCheck.updateAvailable ? (
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50/30 dark:bg-[#0f2428]">
+                <div key="latest" className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50/30 dark:bg-[#0f2428]">
                   <Check size={14} className="text-emerald-500" />
                   <span className="text-xs text-gray-500 dark:text-gray-400">已是最新版本</span>
                 </div>
               ) : (
                 <button
+                  key="check"
                   onClick={() => checkMutation.mutate()}
                   disabled={checkMutation.isPending}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-emerald-50/30 dark:bg-[#0f2428] text-emerald-600 dark:text-emerald-400 active:scale-95 transition-transform disabled:opacity-50 w-full justify-center"
                 >
                   {checkMutation.isPending ? (
-                    <><RefreshCw size={13} className="animate-spin" /> 检查中...</>
+                    <><RefreshCw size={13} className="animate-spin" /><span>检查中...</span></>
                   ) : (
-                    <><RefreshCw size={13} /> 检查更新</>
+                    <><RefreshCw size={13} /><span>检查更新</span></>
                   )}
                 </button>
               )}
