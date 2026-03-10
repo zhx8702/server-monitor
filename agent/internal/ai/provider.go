@@ -41,7 +41,37 @@ func NewProvider() *Provider {
 }
 
 // Chat sends a non-streaming chat completion request and returns the full response.
+// Retries automatically on transient errors (429, 502, 503).
 func (p *Provider) Chat(ctx context.Context, cfg ProviderConfig, req ChatRequest) (*ChatResponse, error) {
+	return p.chatWithRetry(ctx, cfg, req, 3)
+}
+
+func (p *Provider) chatWithRetry(ctx context.Context, cfg ProviderConfig, req ChatRequest, maxRetries int) (*ChatResponse, error) {
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff: 1s, 2s, 4s
+			delay := time.Duration(1<<(attempt-1)) * time.Second
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(delay):
+			}
+		}
+		resp, err := p.chatOnce(ctx, cfg, req)
+		if err == nil {
+			return resp, nil
+		}
+		lastErr = err
+		// Only retry on transient errors
+		if !isTransientError(err) {
+			return nil, err
+		}
+	}
+	return nil, lastErr
+}
+
+func (p *Provider) chatOnce(ctx context.Context, cfg ProviderConfig, req ChatRequest) (*ChatResponse, error) {
 	// Claude uses the Anthropic Messages API format
 	if cfg.Provider == "claude" {
 		return p.chatClaude(ctx, cfg, req)
@@ -185,4 +215,15 @@ func (p *Provider) ChatStream(ctx context.Context, cfg ProviderConfig, req ChatR
 	}
 
 	return scanner.Err()
+}
+
+// isTransientError checks if an error is a retryable transient HTTP error (429, 502, 503).
+func isTransientError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "returned 429") ||
+		strings.Contains(msg, "returned 502") ||
+		strings.Contains(msg, "returned 503")
 }
