@@ -1,6 +1,7 @@
 package terminal
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -62,30 +63,82 @@ func (h *Handler) HandleSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
 	switch req.Action {
 	case "install":
-		resp := installCLI(req.Cmd)
-		json.NewEncoder(w).Encode(resp)
+		streamInstallCLI(w, req.Cmd)
 	case "configure":
-		resp := configureCLI(req.Cmd, req.BaseUrl, req.ApiKey)
-		json.NewEncoder(w).Encode(resp)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(configureCLI(req.Cmd, req.BaseUrl, req.ApiKey))
 	default:
 		http.Error(w, `{"error":"action must be install or configure"}`, http.StatusBadRequest)
 	}
 }
 
+// --- SSE streaming helpers ---
+
+type sseWriter struct {
+	w       http.ResponseWriter
+	flusher http.Flusher
+}
+
+func newSSEWriter(w http.ResponseWriter) *sseWriter {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	f, _ := w.(http.Flusher)
+	return &sseWriter{w: w, flusher: f}
+}
+
+func (s *sseWriter) sendLine(line string) {
+	b, _ := json.Marshal(map[string]string{"line": line})
+	fmt.Fprintf(s.w, "event: output\ndata: %s\n\n", b)
+	if s.flusher != nil {
+		s.flusher.Flush()
+	}
+}
+
+func (s *sseWriter) sendDone(resp SetupResponse) {
+	b, _ := json.Marshal(resp)
+	fmt.Fprintf(s.w, "event: done\ndata: %s\n\n", b)
+	if s.flusher != nil {
+		s.flusher.Flush()
+	}
+}
+
+// --- Core logic ---
+
 func isInstalled(cmd string) bool {
-	_, err := exec.LookPath(cmd)
-	return err == nil
+	// Check PATH first
+	if _, err := exec.LookPath(cmd); err == nil {
+		return true
+	}
+	// Check common npm global install locations (nvm etc.)
+	home := getHomeDir()
+	if home == "" {
+		return false
+	}
+	candidates := []string{"/usr/local/bin/" + cmd, "/usr/bin/" + cmd}
+	nvmDir := filepath.Join(home, ".nvm", "versions", "node")
+	if entries, err := os.ReadDir(nvmDir); err == nil {
+		for i := len(entries) - 1; i >= 0; i-- {
+			candidates = append([]string{filepath.Join(nvmDir, entries[i].Name(), "bin", cmd)}, candidates...)
+		}
+	}
+	candidates = append(candidates, filepath.Join(home, ".local", "bin", cmd))
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func isConfigured(cmd string) bool {
-	home, err := os.UserHomeDir()
-	if err != nil {
+	home := getHomeDir()
+	if home == "" {
 		return false
 	}
+	var err error
 	switch cmd {
 	case "codex":
 		_, err = os.Stat(filepath.Join(home, ".codex", "config.toml"))
@@ -95,7 +148,22 @@ func isConfigured(cmd string) bool {
 	return err == nil
 }
 
-func installCLI(cmd string) SetupResponse {
+// getHomeDir returns the user home directory with a fallback for systemd services.
+func getHomeDir() string {
+	if h, err := os.UserHomeDir(); err == nil {
+		return h
+	}
+	// Fallback: systemd may not set HOME
+	if os.Getuid() == 0 {
+		return "/root"
+	}
+	return ""
+}
+
+// streamInstallCLI streams the CLI installation progress via SSE.
+func streamInstallCLI(w http.ResponseWriter, cmd string) {
+	sse := newSSEWriter(w)
+
 	var pkg string
 	switch cmd {
 	case "codex":
@@ -103,28 +171,157 @@ func installCLI(cmd string) SetupResponse {
 	case "claude":
 		pkg = "@anthropic-ai/claude-code"
 	default:
-		return SetupResponse{Success: false, Message: "unknown command"}
+		sse.sendDone(SetupResponse{Success: false, Message: "unknown command"})
+		return
 	}
 
 	npmPath := findNpm()
+
+	// If npm not found, install Node.js first (streamed)
 	if npmPath == "" {
-		return SetupResponse{
-			Success: false,
-			Message: "未找到 npm，请先安装 Node.js（推荐通过 nvm 安装）",
+		sse.sendLine("npm 未找到，尝试安装 Node.js ...")
+
+		if ok := streamInstallNode(sse); !ok {
+			return // streamInstallNode already sent done event
+		}
+
+		npmPath = findNpm()
+		if npmPath == "" {
+			sse.sendDone(SetupResponse{
+				Success: false,
+				Message: "Node.js 安装完成但未找到 npm，请手动检查",
+			})
+			return
 		}
 	}
 
-	out, err := exec.Command(npmPath, "install", "-g", pkg).CombinedOutput()
+	sse.sendLine(fmt.Sprintf("使用 npm: %s", npmPath))
+	sse.sendLine(fmt.Sprintf("npm install -g %s", pkg))
+
+	// Run npm install with streamed output
+	c := exec.Command(npmPath, "install", "-g", pkg)
+	c.Env = buildEnv()
+	stdout, err := c.StdoutPipe()
 	if err != nil {
-		log.Printf("terminal setup: install %s failed: %v\n%s", pkg, err, out)
-		return SetupResponse{
-			Success: false,
-			Message: fmt.Sprintf("安装失败: %v\n%s", err, strings.TrimSpace(string(out))),
-		}
+		sse.sendDone(SetupResponse{Success: false, Message: err.Error()})
+		return
+	}
+	c.Stderr = c.Stdout // merge stderr
+
+	if err := c.Start(); err != nil {
+		sse.sendDone(SetupResponse{Success: false, Message: fmt.Sprintf("启动失败: %v", err)})
+		return
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		sse.sendLine(scanner.Text())
+	}
+
+	if err := c.Wait(); err != nil {
+		log.Printf("terminal setup: install %s failed: %v", pkg, err)
+		sse.sendDone(SetupResponse{Success: false, Message: fmt.Sprintf("安装失败: %v", err)})
+		return
 	}
 
 	log.Printf("terminal setup: installed %s successfully", pkg)
-	return SetupResponse{Success: true, Message: "安装成功"}
+	sse.sendDone(SetupResponse{Success: true, Message: "安装成功"})
+}
+
+// streamInstallNode tries to install Node.js, streaming output. Returns true on success.
+func streamInstallNode(sse *sseWriter) bool {
+	// 1. Try system package manager
+	type pmCmd struct {
+		check string
+		args  []string
+	}
+	managers := []pmCmd{
+		{"apt-get", []string{"apt-get", "install", "-y", "nodejs", "npm"}},
+		{"dnf", []string{"dnf", "install", "-y", "nodejs", "npm"}},
+		{"yum", []string{"yum", "install", "-y", "nodejs", "npm"}},
+		{"apk", []string{"apk", "add", "nodejs", "npm"}},
+	}
+
+	for _, pm := range managers {
+		if _, err := exec.LookPath(pm.check); err != nil {
+			continue
+		}
+		sse.sendLine(fmt.Sprintf("尝试 %s 安装 Node.js ...", pm.check))
+		if ok := runStreamed(sse, "sudo", pm.args, nil); ok {
+			sse.sendLine("Node.js 安装成功")
+			return true
+		}
+		sse.sendLine(fmt.Sprintf("%s 安装失败，尝试其他方式 ...", pm.check))
+	}
+
+	// 2. Fall back to nvm
+	home := getHomeDir()
+	if home == "" {
+		sse.sendDone(SetupResponse{Success: false, Message: "无法获取 home 目录"})
+		return false
+	}
+
+	sse.sendLine("使用 nvm 安装 Node.js ...")
+	nvmDir := filepath.Join(home, ".nvm")
+	script := `set -e
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+nvm install --lts
+`
+	env := append(buildEnv(), "NVM_DIR="+nvmDir)
+	if ok := runStreamed(sse, "bash", []string{"-c", script}, env); ok {
+		sse.sendLine("nvm + Node.js 安装成功")
+		return true
+	}
+
+	sse.sendDone(SetupResponse{Success: false, Message: "自动安装 Node.js 失败"})
+	return false
+}
+
+// runStreamed executes a command and streams its output line by line. Returns true on success.
+func runStreamed(sse *sseWriter, name string, args []string, env []string) bool {
+	c := exec.Command(name, args...)
+	if env != nil {
+		c.Env = env
+	} else {
+		c.Env = buildEnv()
+	}
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		sse.sendLine(fmt.Sprintf("错误: %v", err))
+		return false
+	}
+	c.Stderr = c.Stdout
+
+	if err := c.Start(); err != nil {
+		sse.sendLine(fmt.Sprintf("启动失败: %v", err))
+		return false
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 64*1024), 256*1024) // handle long lines
+	for scanner.Scan() {
+		sse.sendLine(scanner.Text())
+	}
+
+	return c.Wait() == nil
+}
+
+// buildEnv returns os.Environ() with HOME guaranteed to be set.
+func buildEnv() []string {
+	env := os.Environ()
+	for _, e := range env {
+		if strings.HasPrefix(e, "HOME=") {
+			return env
+		}
+	}
+	// HOME not set — add it (common in systemd)
+	home := getHomeDir()
+	if home != "" {
+		env = append(env, "HOME="+home)
+	}
+	return env
 }
 
 // findNpm locates the npm binary, checking PATH first, then common locations.
@@ -140,7 +337,7 @@ func findNpm() string {
 	}
 
 	// Try common locations (nvm, fnm, system installs)
-	home, _ := os.UserHomeDir()
+	home := getHomeDir()
 	candidates := []string{
 		"/usr/local/bin/npm",
 		"/usr/bin/npm",
@@ -167,9 +364,9 @@ func findNpm() string {
 }
 
 func configureCLI(cmd, baseUrl, apiKey string) SetupResponse {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return SetupResponse{Success: false, Message: fmt.Sprintf("无法获取 home 目录: %v", err)}
+	home := getHomeDir()
+	if home == "" {
+		return SetupResponse{Success: false, Message: "无法获取 home 目录"}
 	}
 
 	switch cmd {
@@ -188,7 +385,6 @@ func configureCodex(home, baseUrl, apiKey string) SetupResponse {
 		return SetupResponse{Success: false, Message: fmt.Sprintf("创建目录失败: %v", err)}
 	}
 
-	// Write config.toml
 	configContent := fmt.Sprintf(`model_provider = "OpenAI"
 model = "gpt-5.4"
 review_model = "gpt-5.4"
@@ -209,7 +405,6 @@ requires_openai_auth = true
 		return SetupResponse{Success: false, Message: fmt.Sprintf("写入 config.toml 失败: %v", err)}
 	}
 
-	// Write auth.json
 	authContent := fmt.Sprintf(`{"OPENAI_API_KEY":"%s"}`, apiKey)
 	if err := os.WriteFile(filepath.Join(dir, "auth.json"), []byte(authContent), 0600); err != nil {
 		return SetupResponse{Success: false, Message: fmt.Sprintf("写入 auth.json 失败: %v", err)}
@@ -225,13 +420,11 @@ func configureClaude(home, baseUrl, apiKey string) SetupResponse {
 		return SetupResponse{Success: false, Message: fmt.Sprintf("创建目录失败: %v", err)}
 	}
 
-	// Write settings.json
 	settingsContent := fmt.Sprintf(`{"apiBaseUrl":"%s"}`, baseUrl)
 	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(settingsContent), 0644); err != nil {
 		return SetupResponse{Success: false, Message: fmt.Sprintf("写入 settings.json 失败: %v", err)}
 	}
 
-	// Write .credentials.json
 	credContent := fmt.Sprintf(`{"apiKey":"%s"}`, apiKey)
 	if err := os.WriteFile(filepath.Join(dir, ".credentials.json"), []byte(credContent), 0600); err != nil {
 		return SetupResponse{Success: false, Message: fmt.Sprintf("写入 .credentials.json 失败: %v", err)}

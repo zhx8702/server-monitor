@@ -100,7 +100,8 @@ fi
 RUNNING_BEFORE=false
 if systemctl is-active --quiet "${SERVICE_NAME}" 2>/dev/null; then
   RUNNING_BEFORE=true
-  info "检测到已运行的服务, 将在更新后优雅重启 ..."
+  info "检测到已运行的服务, 先停止再更新 ..."
+  systemctl stop "${SERVICE_NAME}"
 fi
 
 # ---- 安装二进制 ----
@@ -212,6 +213,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=${ENV_FILE}
+Environment=HOME=/root
 ExecStart=${INSTALL_DIR}/${BINARY_NAME}
 ExecReload=/bin/kill -TERM \$MAINPID
 Restart=always

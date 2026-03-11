@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -41,12 +42,15 @@ func (h *HeadlessRunner) Execute(ctx context.Context, cfg HeadlessConfig, chatID
 
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Env = append(os.Environ(), env...)
-	cmd.Stderr = os.Stderr // let CLI stderr through for debugging
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("stdout pipe: %w", err)
 	}
+
+	// Capture stderr for error reporting
+	var stderrBuf strings.Builder
+	cmd.Stderr = &stderrBuf
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start CLI: %w", err)
@@ -67,6 +71,11 @@ func (h *HeadlessRunner) Execute(ctx context.Context, cfg HeadlessConfig, chatID
 		if ctx.Err() != nil {
 			return nil
 		}
+		stderr := strings.TrimSpace(stderrBuf.String())
+		if stderr != "" {
+			log.Printf("ai headless: stderr: %s", stderr)
+			return fmt.Errorf("%s", stderr)
+		}
 		return fmt.Errorf("CLI exited: %w", err)
 	}
 
@@ -85,14 +94,14 @@ func (h *HeadlessRunner) buildCommand(cfg HeadlessConfig, chatID string, prompt 
 	var args []string
 	var env []string
 
+	bin := findCLIBinary(cfg.CLI)
+
 	switch cfg.CLI {
 	case "claude":
 		args = []string{
-			"claude",
+			bin,
 			"-p", prompt,
 			"--output-format", "stream-json",
-			"--verbose",
-			"--include-partial-messages",
 		}
 
 		if cfg.Model != "" {
@@ -115,10 +124,13 @@ func (h *HeadlessRunner) buildCommand(cfg HeadlessConfig, chatID string, prompt 
 
 	case "codex":
 		args = []string{
-			"codex", "exec",
-			"--json",
-			"-q",
+			bin, "exec",
+			"--skip-git-repo-check",
 			prompt,
+		}
+
+		if cfg.Model != "" {
+			args = append(args, "--model", cfg.Model)
 		}
 
 		env = append(env,
@@ -129,7 +141,52 @@ func (h *HeadlessRunner) buildCommand(cfg HeadlessConfig, chatID string, prompt 
 		}
 	}
 
+	log.Printf("ai headless: command=%v", args)
 	return args, env
+}
+
+// findCLIBinary locates a CLI binary, searching PATH and common npm global locations.
+func findCLIBinary(cmd string) string {
+	// Try PATH first
+	if p, err := exec.LookPath(cmd); err == nil {
+		return p
+	}
+
+	// Search common npm global install locations
+	home := os.Getenv("HOME")
+	if home == "" {
+		if h, err := os.UserHomeDir(); err == nil {
+			home = h
+		} else if os.Getuid() == 0 {
+			home = "/root"
+		}
+	}
+
+	candidates := []string{
+		"/usr/local/bin/" + cmd,
+		"/usr/bin/" + cmd,
+	}
+	if home != "" {
+		// nvm versions
+		nvmDir := filepath.Join(home, ".nvm", "versions", "node")
+		if entries, err := os.ReadDir(nvmDir); err == nil {
+			for i := len(entries) - 1; i >= 0; i-- { // newest first
+				candidates = append([]string{
+					filepath.Join(nvmDir, entries[i].Name(), "bin", cmd),
+				}, candidates...)
+			}
+		}
+		candidates = append(candidates, filepath.Join(home, ".local", "bin", cmd))
+	}
+
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+
+	// Fallback to bare name (will likely fail with a clear error)
+	return cmd
 }
 
 // --- Claude Code stream-json parser ---

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, Download, CheckCircle, AlertCircle, Settings, Loader2 } from 'lucide-react'
 import { useServer } from '../../../core/contexts/ServerContext'
 import type { AIConfig } from '../types'
@@ -30,9 +30,18 @@ export function CLISetupDialog({ cli, config, onReady, onCancel }: Props) {
   const [errorMsg, setErrorMsg] = useState('')
   const [baseUrl, setBaseUrl] = useState(config.endpoint)
   const [apiKey, setApiKey] = useState(config.apiKey)
+  const [outputLines, setOutputLines] = useState<string[]>([])
   const { getClient } = useServer()
+  const outputRef = useRef<HTMLDivElement>(null)
 
   const cliLabel = CLI_LABELS[cli] || cli
+
+  // Auto-scroll output
+  useEffect(() => {
+    if (outputRef.current) {
+      outputRef.current.scrollTop = outputRef.current.scrollHeight
+    }
+  }, [outputLines])
 
   const checkStatus = useCallback(async () => {
     const client = getClient()
@@ -52,7 +61,6 @@ export function CLISetupDialog({ cli, config, onReady, onCancel }: Props) {
         setState('configure')
       }
     } catch {
-      // If API fails, assume we need setup
       setState('not_installed')
     }
   }, [cli, getClient])
@@ -66,17 +74,51 @@ export function CLISetupDialog({ cli, config, onReady, onCancel }: Props) {
     if (!client) return
 
     setState('installing')
+    setOutputLines([])
+    setErrorMsg('')
+
     try {
-      const res = await client.post<{ success: boolean; message: string }>(
-        '/api/terminal/setup',
-        { cmd: cli, action: 'install' },
-      )
-      if (res.success) {
-        // After install, check if config exists
-        setState('configure')
-      } else {
-        setErrorMsg(res.message)
-        setState('install_failed')
+      const res = await client.postStream('/api/terminal/setup', {
+        cmd: cli, action: 'install',
+      })
+
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error('No response body')
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        let eventType = ''
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim()
+          } else if (line.startsWith('data: ') && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              if (eventType === 'output') {
+                setOutputLines(prev => [...prev, data.line])
+              } else if (eventType === 'done') {
+                if (data.success) {
+                  setState('configure')
+                } else {
+                  setErrorMsg(data.message)
+                  setState('install_failed')
+                }
+              }
+            } catch {
+              // skip malformed data
+            }
+            eventType = ''
+          }
+        }
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : '安装失败')
@@ -107,6 +149,20 @@ export function CLISetupDialog({ cli, config, onReady, onCancel }: Props) {
     }
   }
 
+  // Terminal-like output panel
+  const OutputPanel = () => (
+    outputLines.length > 0 ? (
+      <div
+        ref={outputRef}
+        className="bg-[#1a1a2e] rounded-lg p-3 max-h-48 overflow-y-auto font-mono text-[11px] leading-relaxed text-gray-300 mt-3"
+      >
+        {outputLines.map((line, i) => (
+          <div key={i} className="whitespace-pre-wrap break-all">{line || '\u00A0'}</div>
+        ))}
+      </div>
+    ) : null
+  )
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 dark:bg-black/60" onClick={onCancel} />
@@ -136,7 +192,7 @@ export function CLISetupDialog({ cli, config, onReady, onCancel }: Props) {
             </div>
             <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">{cliLabel} 未安装</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-5">
-              需要在服务器上安装 {cliLabel} 才能使用 AI 助手
+              需要在服务器上安装 {cliLabel} 才能使用
             </p>
             <div className="flex gap-2 w-full">
               <button
@@ -155,31 +211,45 @@ export function CLISetupDialog({ cli, config, onReady, onCancel }: Props) {
           </div>
         )}
 
-        {/* Installing */}
+        {/* Installing - with streaming output */}
         {state === 'installing' && (
-          <div className="flex flex-col items-center py-8">
-            <Loader2 className="w-8 h-8 text-emerald-500 animate-spin mb-3" />
-            <p className="text-sm text-gray-500 dark:text-gray-400">正在安装 {cliLabel}...</p>
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">这可能需要几分钟</p>
+          <div className="py-2">
+            <div className="flex items-center gap-2 mb-1">
+              <Loader2 className="w-5 h-5 text-emerald-500 animate-spin shrink-0" />
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">正在安装 {cliLabel}</h3>
+            </div>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1">这可能需要几分钟</p>
+            <OutputPanel />
           </div>
         )}
 
-        {/* Install Failed */}
+        {/* Install Failed - show output for debugging */}
         {state === 'install_failed' && (
-          <div className="flex flex-col items-center py-6">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center mb-3">
-              <AlertCircle className="w-6 h-6 text-rose-500" />
+          <div className="py-2">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">安装失败</h3>
             </div>
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">安装失败</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-4 max-h-20 overflow-y-auto">
-              {errorMsg}
-            </p>
-            <button
-              onClick={onCancel}
-              className="w-full py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-white/[0.06] hover:bg-gray-200 dark:hover:bg-white/[0.1] transition-colors"
-            >
-              关闭
-            </button>
+            {errorMsg && (
+              <p className="text-xs text-rose-500 bg-rose-50 dark:bg-rose-500/10 rounded-lg px-3 py-2 mb-2">
+                {errorMsg}
+              </p>
+            )}
+            <OutputPanel />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={onCancel}
+                className="flex-1 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-white/[0.06] hover:bg-gray-200 dark:hover:bg-white/[0.1] transition-colors"
+              >
+                关闭
+              </button>
+              <button
+                onClick={handleInstall}
+                className="flex-1 py-2 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 transition-colors"
+              >
+                重试
+              </button>
+            </div>
           </div>
         )}
 
