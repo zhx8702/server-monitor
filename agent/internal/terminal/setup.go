@@ -106,12 +106,15 @@ func installCLI(cmd string) SetupResponse {
 		return SetupResponse{Success: false, Message: "unknown command"}
 	}
 
-	// Use npm to install globally
-	npmCmd := "npm"
-	if runtime.GOOS == "windows" {
-		npmCmd = "npm.cmd"
+	npmPath := findNpm()
+	if npmPath == "" {
+		return SetupResponse{
+			Success: false,
+			Message: "未找到 npm，请先安装 Node.js（推荐通过 nvm 安装）",
+		}
 	}
-	out, err := exec.Command(npmCmd, "install", "-g", pkg).CombinedOutput()
+
+	out, err := exec.Command(npmPath, "install", "-g", pkg).CombinedOutput()
 	if err != nil {
 		log.Printf("terminal setup: install %s failed: %v\n%s", pkg, err, out)
 		return SetupResponse{
@@ -122,6 +125,45 @@ func installCLI(cmd string) SetupResponse {
 
 	log.Printf("terminal setup: installed %s successfully", pkg)
 	return SetupResponse{Success: true, Message: "安装成功"}
+}
+
+// findNpm locates the npm binary, checking PATH first, then common locations.
+func findNpm() string {
+	npmCmd := "npm"
+	if runtime.GOOS == "windows" {
+		npmCmd = "npm.cmd"
+	}
+
+	// Try PATH first
+	if p, err := exec.LookPath(npmCmd); err == nil {
+		return p
+	}
+
+	// Try common locations (nvm, fnm, system installs)
+	home, _ := os.UserHomeDir()
+	candidates := []string{
+		"/usr/local/bin/npm",
+		"/usr/bin/npm",
+	}
+	if home != "" {
+		// Scan nvm versions directory for npm
+		nvmDir := filepath.Join(home, ".nvm", "versions", "node")
+		if entries, err := os.ReadDir(nvmDir); err == nil {
+			for i := len(entries) - 1; i >= 0; i-- { // newest first
+				p := filepath.Join(nvmDir, entries[i].Name(), "bin", "npm")
+				candidates = append([]string{p}, candidates...)
+			}
+		}
+		candidates = append(candidates, filepath.Join(home, ".local", "bin", "npm"))
+	}
+
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+
+	return ""
 }
 
 func configureCLI(cmd, baseUrl, apiKey string) SetupResponse {

@@ -1,10 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
-import { Settings, Trash2, Send, Square, Bot } from 'lucide-react'
+import { Settings, Trash2, Send, Square, Bot, Wrench } from 'lucide-react'
 import { useAIConfig } from '../hooks/useAIConfig'
 import { useAIChat } from '../hooks/useAIChat'
 import { MessageBubble } from '../components/MessageBubble'
 import { AIConfigSheet } from '../components/AIConfigSheet'
 import { CLISetupDialog } from '../components/CLISetupDialog'
+
+const CLI_LABELS: Record<string, string> = {
+  claude: 'Claude Code',
+  codex: 'Codex CLI',
+}
 
 const SUGGESTIONS = [
   '查看系统状态',
@@ -29,13 +34,6 @@ export function ChatPage() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages])
-
-  // Show setup dialog when configured but CLI not yet checked
-  useEffect(() => {
-    if (isConfigured && !cliReady && !showSetup) {
-      setShowSetup(true)
-    }
-  }, [isConfigured, cliReady, showSetup])
 
   const handleSend = () => {
     const text = input.trim()
@@ -89,8 +87,16 @@ export function ChatPage() {
               </>
             ) : !cliReady ? (
               <>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">正在检测 CLI 工具...</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">请完成 CLI 设置后开始对话</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  需要在服务器上设置 {CLI_LABELS[config.cli] || config.cli}
+                </p>
+                <button
+                  onClick={() => setShowSetup(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 transition-colors"
+                >
+                  <Wrench className="w-4 h-4" />
+                  设置 CLI 工具
+                </button>
               </>
             ) : (
               <>
