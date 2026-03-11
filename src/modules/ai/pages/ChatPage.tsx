@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Settings, Trash2, Send, Square, Bot, Wrench, History, Download, X, ChevronRight } from 'lucide-react'
 import { useServer } from '../../../core/contexts/ServerContext'
 import { useAIConfig } from '../hooks/useAIConfig'
-import { useAIChat, type ArchivedChat } from '../hooks/useAIChat'
+import { useAIChatContext, type ArchivedChat } from '../contexts/AIChatContext'
 import { MessageBubble } from '../components/MessageBubble'
 import { AIConfigSheet } from '../components/AIConfigSheet'
 import { CLISetupDialog } from '../components/CLISetupDialog'
@@ -24,7 +24,7 @@ export function ChatPage() {
   const {
     messages, isProcessing, sendMessage, stopGeneration, clearMessages,
     frequentCommands, archives, deleteArchive, exportChat,
-  } = useAIChat(config)
+  } = useAIChatContext()
   const [input, setInput] = useState('')
   const [showConfig, setShowConfig] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
