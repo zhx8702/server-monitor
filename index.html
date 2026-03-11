@@ -15,6 +15,21 @@
         var dark = t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)
         if (dark) document.documentElement.classList.add('dark')
         document.querySelector('meta[name="theme-color"]').content = dark ? '#0c0f14' : '#ffffff'
+
+        // Capacitor: 覆盖安装 APK 后旧 SW 缓存的文件名与新版不匹配，导致动态 import 失败
+        // 必须在 module script 加载前清理，否则来不及
+        if (window.Capacitor && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            if (regs.length > 0) {
+              regs.forEach(function(r) { r.unregister() })
+              caches.keys().then(function(keys) {
+                Promise.all(keys.map(function(k) { return caches.delete(k) })).then(function() {
+                  location.reload()
+                })
+              })
+            }
+          })
+        }
       })()
     </script>
   </head>
