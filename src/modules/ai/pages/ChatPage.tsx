@@ -77,7 +77,7 @@ export function ChatPage() {
     const text = input.trim()
     if (!text || isProcessing) return
     setInput('')
-    sendMessage(text)
+    sendMessage(text, config)
     if (inputRef.current) inputRef.current.style.height = 'auto'
   }
 

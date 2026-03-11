@@ -1,9 +1,8 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react'
 import { Preferences } from '@capacitor/preferences'
 import { useServer } from '../../../core/contexts/ServerContext'
-import { useAIConfig } from '../hooks/useAIConfig'
 import { generateId } from '../../../core/utils'
-import type { ChatMessage, ToolCallInfo, SSEToolCallData, SSEToolResultData } from '../types'
+import type { AIConfig, ChatMessage, ToolCallInfo, SSEToolCallData, SSEToolResultData } from '../types'
 
 const CHAT_KEY_PREFIX = 'sm_ai_chat_'
 const ARCHIVE_KEY_PREFIX = 'sm_ai_archive_'
@@ -26,7 +25,7 @@ export interface ArchivedChat {
 interface AIChatContextValue {
   messages: ChatMessage[]
   isProcessing: boolean
-  sendMessage: (content: string) => void
+  sendMessage: (content: string, config: AIConfig) => void
   stopGeneration: () => void
   clearMessages: () => void
   frequentCommands: string[]
@@ -38,7 +37,6 @@ interface AIChatContextValue {
 const AIChatContext = createContext<AIChatContextValue | null>(null)
 
 export function AIChatProvider({ children }: { children: ReactNode }) {
-  const { config } = useAIConfig()
   const { getClient, activeServerId } = useServer()
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -115,7 +113,7 @@ export function AIChatProvider({ children }: { children: ReactNode }) {
     })
   }, [freqKey])
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, config: AIConfig) => {
     const client = getClient()
     if (!client || !config.apiKey) return
 
@@ -196,7 +194,7 @@ export function AIChatProvider({ children }: { children: ReactNode }) {
       setIsProcessing(false)
       abortRef.current = null
     }
-  }, [config, chatId, getClient, trackCommand])
+  }, [chatId, getClient, trackCommand])
 
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort()
